@@ -55,8 +55,9 @@ func eval(expr Expression, env *Environ[any]) (any, error) {
 	case call:
 		res, err = evalCall(e, env)
 		if errors.Is(err, errReturn) {
-			return res, nil
+			err = nil
 		}
+		return res, err
 	case literal:
 		return e.str, nil
 	case number:

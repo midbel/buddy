@@ -56,7 +56,7 @@ var powers = powerMap{
 	Ge:        powCompare,
 }
 
-type Program struct {
+type program struct {
 	Expression
 	symbols map[string]Expression
 }
