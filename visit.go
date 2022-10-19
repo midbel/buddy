@@ -91,8 +91,15 @@ func replaceValue(expr Expression, env *Environ[any]) (Expression, error) {
 		e.right, err = replaceValue(e.right, env)
 		return e, nil
 	case function:
+		e.params, err = replaceExprList(e.params, env)
+		if err != nil {
+			return nil, err
+		}
 		e.body, err = replaceValue(e.body, env)
 		return e, nil
+	case parameter:
+		e.expr, err = replaceValue(e.expr, env)
+		return e, err
 	default:
 		return expr, nil
 	}

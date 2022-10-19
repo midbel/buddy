@@ -77,18 +77,24 @@ func (_ number) isPrimitive() bool {
 	return true
 }
 
-type argument struct {
+type parameter struct {
 	ident string
-	value Expression
+	expr  Expression
 }
 
-func (_ argument) isPrimitive() bool {
+func createParameter(ident string) parameter {
+	return parameter{
+		ident: ident,
+	}
+}
+
+func (_ parameter) isPrimitive() bool {
 	return false
 }
 
 type function struct {
 	ident  string
-	params []string
+	params []Expression
 	body   Expression
 }
 

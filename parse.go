@@ -109,17 +109,19 @@ func Parse(r io.Reader) (Expression, error) {
 func (p *parser) Parse() (Expression, error) {
 	var s script
 	for !p.done() {
+		if ok, err := p.parseSpecial(); ok {
+			if err != nil {
+				return nil, err
+			}
+			continue
+		}
 		e, err := p.parse(powLowest)
 		if err != nil {
 			return nil, err
 		}
 		s.list = append(s.list, e)
-		switch p.curr.Type {
-		case EOL:
-			p.next()
-		case EOF:
-		default:
-			return nil, fmt.Errorf("syntax error! missing eol")
+		if err := p.eol(); err != nil {
+			return nil, err
 		}
 	}
 	var e Expression
@@ -156,10 +158,27 @@ func (p *parser) parse(pow int) (Expression, error) {
 	return left, nil
 }
 
+func (p *parser) parseSpecial() (bool, error) {
+	if p.curr.Type != Keyword {
+		return false, nil
+	}
+	var err error
+	switch p.curr.Literal {
+	default:
+		return false, nil
+	case kwDef:
+		_, err = p.parseFunction()
+	case kwImport:
+		_, err = p.parseImport()
+	}
+	if err != nil {
+		return true, err
+	}
+	return true, p.eol()
+}
+
 func (p *parser) parseKeyword() (Expression, error) {
 	switch p.curr.Literal {
-	case kwDef:
-		return p.parseFunction()
 	case kwIf:
 		return p.parseIf()
 	case kwWhile:
@@ -170,8 +189,6 @@ func (p *parser) parseKeyword() (Expression, error) {
 		return p.parseContinue()
 	case kwReturn:
 		return p.parseReturn()
-	case kwImport:
-		return p.parseImport()
 	default:
 		return nil, fmt.Errorf("%s: keyword not implemented", p.curr.Literal)
 	}
@@ -181,19 +198,47 @@ func (p *parser) parseImport() (Expression, error) {
 	return nil, nil
 }
 
-func (p *parser) parseParameters() ([]string, error) {
+func (p *parser) parseParameters() ([]Expression, error) {
 	if p.curr.Type != Lparen {
 		return nil, fmt.Errorf("unexpected token: %s", p.curr)
 	}
 	p.next()
 
-	var list []string
+	var list []Expression
+	for p.curr.Type != Rparen && !p.done() {
+		if p.peek.Type == Assign {
+			break
+		}
+		if p.curr.Type != Ident {
+			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		}
+		a := createParameter(p.curr.Literal)
+		list = append(list, a)
+		p.next()
+		switch p.curr.Type {
+		case Comma:
+			p.next()
+		case Rparen:
+		default:
+			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		}
+	}
 	for p.curr.Type != Rparen && !p.done() {
 		if p.curr.Type != Ident {
 			return nil, fmt.Errorf("unexpected token: %s", p.curr)
 		}
-		list = append(list, p.curr.Literal)
+		a := createParameter(p.curr.Literal)
 		p.next()
+		if p.curr.Type != Assign {
+			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		}
+		p.next()
+		expr, err := p.parse(powLowest)
+		if err != nil {
+			return nil, err
+		}
+		a.expr = expr
+		list = append(list, a)
 		switch p.curr.Type {
 		case Comma:
 			p.next()
@@ -503,6 +548,17 @@ func (p *parser) parseGroup() (Expression, error) {
 	}
 	p.next()
 	return expr, nil
+}
+
+func (p *parser) eol() error {
+	switch p.curr.Type {
+	case EOL:
+		p.next()
+	case EOF:
+	default:
+		return fmt.Errorf("syntax error! missing eol")
+	}
+	return nil
 }
 
 func (p *parser) done() bool {
