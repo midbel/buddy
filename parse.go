@@ -6,6 +6,8 @@ import (
 	"strconv"
 )
 
+const MaxArity = 255
+
 const (
 	powLowest   = iota
 	powAssign   // =
@@ -54,6 +56,11 @@ var powers = powerMap{
 	Ge:        powCompare,
 }
 
+type Program struct {
+	Expression
+	symbols map[string]Expression
+}
+
 type parser struct {
 	scan *Scanner
 	curr Token
@@ -61,11 +68,14 @@ type parser struct {
 
 	prefix map[rune]func() (Expression, error)
 	infix  map[rune]func(Expression) (Expression, error)
+
+	symbols map[string]Expression
 }
 
 func Parse(r io.Reader) (Expression, error) {
 	p := parser{
-		scan: Scan(r),
+		scan:    Scan(r),
+		symbols: make(map[string]Expression),
 	}
 	p.prefix = map[rune]func() (Expression, error){
 		Sub:     p.parsePrefix,
@@ -162,19 +172,26 @@ func (p *parser) parseSpecial() (bool, error) {
 	if p.curr.Type != Keyword {
 		return false, nil
 	}
-	var err error
 	switch p.curr.Literal {
 	default:
 		return false, nil
 	case kwDef:
-		_, err = p.parseFunction()
+		var (
+			ident   = p.peek.Literal
+			fn, err = p.parseFunction()
+		)
+		if err == nil {
+			p.symbols[ident] = fn
+			err = p.eol()
+		}
+		return true, err
 	case kwImport:
-		_, err = p.parseImport()
-	}
-	if err != nil {
+		_, err := p.parseImport()
+		if err == nil {
+			err = p.eol()
+		}
 		return true, err
 	}
-	return true, p.eol()
 }
 
 func (p *parser) parseKeyword() (Expression, error) {
@@ -246,6 +263,9 @@ func (p *parser) parseParameters() ([]Expression, error) {
 		default:
 			return nil, fmt.Errorf("unexpected token: %s", p.curr)
 		}
+	}
+	if len(list) > MaxArity {
+		return nil, fmt.Errorf("too many parameters given to function")
 	}
 	if p.curr.Type != Rparen {
 		return nil, fmt.Errorf("unexpected token: %s", p.curr)

@@ -1,6 +1,7 @@
 package buddy
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -9,7 +10,13 @@ import (
 	"github.com/midbel/buddy/builtins"
 )
 
-func Eval(r io.Reader) (interface{}, error) {
+var (
+	errBreak    = errors.New("break")
+	errContinue = errors.New("continue")
+	errReturn   = errors.New("return")
+)
+
+func Eval(r io.Reader) (any, error) {
 	expr, err := Parse(r)
 	if err != nil {
 		return nil, err
@@ -18,7 +25,7 @@ func Eval(r io.Reader) (interface{}, error) {
 	return Execute(expr, env)
 }
 
-func Execute(expr Expression, env *Environ[any]) (interface{}, error) {
+func Execute(expr Expression, env *Environ[any]) (any, error) {
 	var (
 		err  error
 		list = []visitFunc{replaceValue}
@@ -29,21 +36,27 @@ func Execute(expr Expression, env *Environ[any]) (interface{}, error) {
 	return eval(expr, env)
 }
 
-func eval(expr Expression, env *Environ[any]) (interface{}, error) {
+func eval(expr Expression, env *Environ[any]) (any, error) {
 	var (
-		res interface{}
+		res any
 		err error
 	)
 	switch e := expr.(type) {
 	case script:
 		for _, e := range e.list {
 			res, err = eval(e, env)
-			if err != nil {
+			if err != nil && !errors.Is(err, errReturn) {
 				break
+			}
+			if errors.Is(err, errReturn) {
+				return res, nil
 			}
 		}
 	case call:
 		res, err = evalCall(e, env)
+		if errors.Is(err, errReturn) {
+			return res, nil
+		}
 	case literal:
 		return e.str, nil
 	case number:
@@ -62,11 +75,16 @@ func eval(expr Expression, env *Environ[any]) (interface{}, error) {
 		res, err = evalTest(e, env)
 	case while:
 		res, err = evalWhile(e, env)
+	case returned:
+	case breaked:
+		return nil, errBreak
+	case continued:
+		return nil, errContinue
 	}
 	return res, err
 }
 
-func evalUnary(u unary, env *Environ[any]) (interface{}, error) {
+func evalUnary(u unary, env *Environ[any]) (any, error) {
 	res, err := eval(u.right, env)
 	if err != nil {
 		return nil, err
@@ -85,7 +103,7 @@ func evalUnary(u unary, env *Environ[any]) (interface{}, error) {
 	}
 }
 
-func evalBinary(b binary, env *Environ[any]) (interface{}, error) {
+func evalBinary(b binary, env *Environ[any]) (any, error) {
 	left, err := eval(b.left, env)
 	if err != nil {
 		return nil, err
@@ -128,7 +146,7 @@ func evalBinary(b binary, env *Environ[any]) (interface{}, error) {
 	}
 }
 
-func evalTest(t test, env *Environ[any]) (interface{}, error) {
+func evalTest(t test, env *Environ[any]) (any, error) {
 	res, err := eval(t.cdt, env)
 	if err != nil {
 		return nil, err
@@ -142,9 +160,9 @@ func evalTest(t test, env *Environ[any]) (interface{}, error) {
 	return eval(t.alt, env)
 }
 
-func evalWhile(w while, env *Environ[any]) (interface{}, error) {
+func evalWhile(w while, env *Environ[any]) (any, error) {
 	var (
-		res interface{}
+		res any
 		err error
 	)
 	for {
@@ -157,13 +175,19 @@ func evalWhile(w while, env *Environ[any]) (interface{}, error) {
 		}
 		res, err = eval(w.body, env)
 		if err != nil {
+			if errors.Is(err, errBreak) {
+				break
+			}
+			if errors.Is(err, errContinue) {
+				continue
+			}
 			return nil, err
 		}
 	}
 	return res, nil
 }
 
-func evalAssign(a assign, env *Environ[any]) (interface{}, error) {
+func evalAssign(a assign, env *Environ[any]) (any, error) {
 	res, err := eval(a.right, env)
 	if err != nil {
 		return nil, err
@@ -172,10 +196,10 @@ func evalAssign(a assign, env *Environ[any]) (interface{}, error) {
 	return nil, nil
 }
 
-func evalCall(c call, env *Environ[any]) (interface{}, error) {
+func evalCall(c call, env *Environ[any]) (any, error) {
 	var (
-		args []interface{}
-		res  interface{}
+		args []any
+		res  any
 		err  error
 	)
 	for _, a := range c.args {
@@ -185,14 +209,14 @@ func evalCall(c call, env *Environ[any]) (interface{}, error) {
 		}
 		args = append(args, res)
 	}
-	fn, ok := builtins.Builtins[c.ident]
-	if !ok {
-		return nil, fmt.Errorf("%s: function not defined")
+	fn, err := builtins.Lookup(c.ident)
+	if err != nil {
+		return nil, err
 	}
 	return fn(args...)
 }
 
-func execLesser(left, right interface{}, eq bool) (interface{}, error) {
+func execLesser(left, right any, eq bool) (any, error) {
 	switch x := left.(type) {
 	case float64:
 		y, ok := right.(float64)
@@ -211,7 +235,7 @@ func execLesser(left, right interface{}, eq bool) (interface{}, error) {
 	}
 }
 
-func execGreater(left, right interface{}, eq bool) (interface{}, error) {
+func execGreater(left, right any, eq bool) (any, error) {
 	switch x := left.(type) {
 	case float64:
 		y, ok := right.(float64)
@@ -230,7 +254,7 @@ func execGreater(left, right interface{}, eq bool) (interface{}, error) {
 	}
 }
 
-func execEqual(left, right interface{}, ne bool) (interface{}, error) {
+func execEqual(left, right any, ne bool) (any, error) {
 	switch x := left.(type) {
 	case float64:
 		y, ok := right.(float64)
@@ -280,14 +304,14 @@ func isGreater[T float64 | string](left, right T, eq bool) bool {
 	return ok
 }
 
-func execAnd(left, right interface{}) (interface{}, error) {
+func execAnd(left, right any) (any, error) {
 	return isTruthy(left) && isTruthy(right), nil
 }
-func execOr(left, right interface{}) (interface{}, error) {
+func execOr(left, right any) (any, error) {
 	return isTruthy(left) || isTruthy(right), nil
 }
 
-func execAdd(left, right interface{}) (interface{}, error) {
+func execAdd(left, right any) (any, error) {
 	switch x := left.(type) {
 	case float64:
 		if y, ok := right.(float64); ok {
@@ -310,7 +334,7 @@ func execAdd(left, right interface{}) (interface{}, error) {
 	}
 }
 
-func execSub(left, right interface{}) (interface{}, error) {
+func execSub(left, right any) (any, error) {
 	switch x := left.(type) {
 	case float64:
 		if y, ok := right.(float64); ok {
@@ -333,7 +357,7 @@ func execSub(left, right interface{}) (interface{}, error) {
 	}
 }
 
-func execMul(left, right interface{}) (interface{}, error) {
+func execMul(left, right any) (any, error) {
 	switch x := left.(type) {
 	case float64:
 		if y, ok := right.(float64); ok {
@@ -353,7 +377,7 @@ func execMul(left, right interface{}) (interface{}, error) {
 	}
 }
 
-func execDiv(left, right interface{}) (interface{}, error) {
+func execDiv(left, right any) (any, error) {
 	switch x := left.(type) {
 	case float64:
 		if y, ok := right.(float64); ok {
@@ -374,7 +398,7 @@ func execDiv(left, right interface{}) (interface{}, error) {
 	}
 }
 
-func execMod(left, right interface{}) (interface{}, error) {
+func execMod(left, right any) (any, error) {
 	x, ok1 := left.(float64)
 	y, ok2 := right.(float64)
 	if !ok1 || !ok2 {
@@ -386,7 +410,7 @@ func execMod(left, right interface{}) (interface{}, error) {
 	return math.Mod(x, y), nil
 }
 
-func execPow(left, right interface{}) (interface{}, error) {
+func execPow(left, right any) (any, error) {
 	x, ok1 := left.(float64)
 	y, ok2 := right.(float64)
 	if !ok1 || !ok2 {
@@ -395,7 +419,7 @@ func execPow(left, right interface{}) (interface{}, error) {
 	return math.Pow(x, y), nil
 }
 
-func isTruthy(v interface{}) bool {
+func isTruthy(v any) bool {
 	switch x := v.(type) {
 	case bool:
 		return x

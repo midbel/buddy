@@ -12,6 +12,9 @@ type Scanner struct {
 	curr int
 	next int
 	char rune
+
+	Position
+	seen int
 }
 
 func Scan(r io.Reader) *Scanner {
@@ -19,6 +22,7 @@ func Scan(r io.Reader) *Scanner {
 	x := Scanner{
 		input: bytes.ReplaceAll(in, []byte{cr, nl}, []byte{nl}),
 	}
+	x.Line++
 	return &x
 }
 
@@ -204,6 +208,13 @@ func (s *Scanner) read() {
 	if s.curr >= len(s.input) || s.char == utf8.RuneError {
 		return
 	}
+	if s.char == nl {
+		s.seen = s.Column
+		s.Line++
+		s.Column = 0
+	}
+	s.Column++
+
 	r, size := utf8.DecodeRune(s.input[s.next:])
 	s.curr = s.next
 	s.next += size
@@ -212,6 +223,11 @@ func (s *Scanner) read() {
 
 func (s *Scanner) unread() {
 	var size int
+	if s.char == nl {
+		s.Line--
+		s.Column = s.seen
+	}
+	s.Column--
 	s.char, size = utf8.DecodeRune(s.input[s.curr:])
 	s.next = s.curr
 	s.curr -= size
