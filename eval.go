@@ -76,6 +76,14 @@ func eval(expr Expression, env *Environ[any]) (any, error) {
 	case while:
 		res, err = evalWhile(e, env)
 	case returned:
+		if e.right == nil {
+			return nil, errReturn
+		}
+		res, err = eval(e.right, env)
+		if err != nil {
+			return nil, err
+		}
+		return res, errReturn
 	case breaked:
 		return nil, errBreak
 	case continued:

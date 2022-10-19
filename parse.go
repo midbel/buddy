@@ -392,6 +392,9 @@ func (p *parser) parseWhile() (Expression, error) {
 
 func (p *parser) parseReturn() (Expression, error) {
 	p.next()
+	if p.curr.Type == EOL || p.curr.Type == EOF {
+		return returned{}, nil
+	}
 	right, err := p.parse(powLowest)
 	if err != nil {
 		return nil, err
