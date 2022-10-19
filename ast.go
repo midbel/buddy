@@ -1,4 +1,4 @@
-package oryx
+package buddy
 
 import (
 	"fmt"
@@ -75,6 +75,25 @@ func createNumber(f float64) number {
 
 func (_ number) isPrimitive() bool {
 	return true
+}
+
+type argument struct {
+	ident string
+	value Expression
+}
+
+func (_ argument) isPrimitive() bool {
+	return false
+}
+
+type function struct {
+	ident  string
+	params []string
+	body   Expression
+}
+
+func (_ function) isPrimitive() bool {
+	return false
 }
 
 type assign struct {

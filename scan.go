@@ -1,4 +1,4 @@
-package oryx
+package buddy
 
 import (
 	"bytes"

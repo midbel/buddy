@@ -1,13 +1,12 @@
-package oryx
+package buddy
 
 import (
 	"fmt"
 	"io"
 	"math"
 	"strings"
-	"time"
 
-	"github.com/midbel/slices"
+	"github.com/midbel/buddy/builtins"
 )
 
 func Eval(r io.Reader) (interface{}, error) {
@@ -186,58 +185,11 @@ func evalCall(c call, env *Environ[any]) (interface{}, error) {
 		}
 		args = append(args, res)
 	}
-	switch c.ident {
-	case "len":
-		if len(args) != 1 {
-			return nil, fmt.Errorf("len: no enough argument given")
-		}
-		str, ok := slices.Fst(args).(string)
-		if !ok {
-			return nil, fmt.Errorf("incompatible type: string expected")
-		}
-		return float64(len(str)), nil
-	case "lower":
-		if len(args) < 1 {
-			return nil, fmt.Errorf("printf: no enough argument given")
-		}
-		str, ok := slices.Fst(args).(string)
-		if !ok {
-			return nil, fmt.Errorf("incompatible type: string expected")
-		}
-		return strings.ToLower(str), nil
-	case "upper":
-		if len(args) < 1 {
-			return nil, fmt.Errorf("printf: no enough argument given")
-		}
-		str, ok := slices.Fst(args).(string)
-		if !ok {
-			return nil, fmt.Errorf("incompatible type: string expected")
-		}
-		return strings.ToUpper(str), nil
-	case "printf", "format":
-		if len(args) < 1 {
-			return nil, fmt.Errorf("printf: no enough argument given")
-		}
-		pattern, ok := slices.Fst(args).(string)
-		if !ok {
-			return nil, fmt.Errorf("incompatible type: string expected")
-		}
-		res = fmt.Sprintf(pattern, slices.Rest(args)...)
-	case "print":
-		if len(args) < 1 {
-			return nil, fmt.Errorf("printf: no enough argument given")
-		}
-		res = fmt.Sprint(args...)
-	case "time":
-		if len(args) != 0 {
-			return nil, fmt.Errorf("time: too many arguments given")
-		}
-		t := time.Now().Unix()
-		return float64(t), nil
-	default:
-		return nil, fmt.Errorf("%s: function undefined", c.ident)
+	fn, ok := builtins.Builtins[c.ident]
+	if !ok {
+		return nil, fmt.Errorf("%s: function not defined")
 	}
-	return res, nil
+	return fn(args...)
 }
 
 func execLesser(left, right interface{}, eq bool) (interface{}, error) {

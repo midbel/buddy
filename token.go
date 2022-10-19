@@ -1,4 +1,4 @@
-package oryx
+package buddy
 
 import (
 	"fmt"
@@ -9,20 +9,24 @@ const (
 	kwElse     = "else"
 	kwWhile    = "while"
 	kwReturn   = "return"
+	kwDef      = "def"
 	kwTrue     = "true"
 	kwFalse    = "false"
 	kwBreak    = "break"
 	kwContinue = "continue"
+	kwImport   = "import"
 )
 
 func isKeyword(str string) bool {
 	switch str {
+	case kwDef:
 	case kwIf:
 	case kwElse:
 	case kwWhile:
 	case kwBreak:
 	case kwContinue:
 	case kwReturn:
+	case kwImport:
 	default:
 		return false
 	}

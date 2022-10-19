@@ -1,4 +1,4 @@
-package oryx
+package buddy
 
 type visitFunc func(Expression, *Environ[any]) (Expression, error)
 
@@ -89,6 +89,9 @@ func replaceValue(expr Expression, env *Environ[any]) (Expression, error) {
 		return e, err
 	case returned:
 		e.right, err = replaceValue(e.right, env)
+		return e, nil
+	case function:
+		e.body, err = replaceValue(e.body, env)
 		return e, nil
 	default:
 		return expr, nil

@@ -1,4 +1,4 @@
-module github.com/midbel/oryx
+module github.com/midbel/buddy
 
 go 1.19
 

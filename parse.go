@@ -1,4 +1,4 @@
-package oryx
+package buddy
 
 import (
 	"fmt"
@@ -158,6 +158,8 @@ func (p *parser) parse(pow int) (Expression, error) {
 
 func (p *parser) parseKeyword() (Expression, error) {
 	switch p.curr.Literal {
+	case kwDef:
+		return p.parseFunction()
 	case kwIf:
 		return p.parseIf()
 	case kwWhile:
@@ -168,9 +170,62 @@ func (p *parser) parseKeyword() (Expression, error) {
 		return p.parseContinue()
 	case kwReturn:
 		return p.parseReturn()
+	case kwImport:
+		return p.parseImport()
 	default:
 		return nil, fmt.Errorf("%s: keyword not implemented", p.curr.Literal)
 	}
+}
+
+func (p *parser) parseImport() (Expression, error) {
+	return nil, nil
+}
+
+func (p *parser) parseParameters() ([]string, error) {
+	if p.curr.Type != Lparen {
+		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+	}
+	p.next()
+
+	var list []string
+	for p.curr.Type != Rparen && !p.done() {
+		if p.curr.Type != Ident {
+			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		}
+		list = append(list, p.curr.Literal)
+		p.next()
+		switch p.curr.Type {
+		case Comma:
+			p.next()
+		case Rparen:
+		default:
+			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		}
+	}
+	if p.curr.Type != Rparen {
+		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+	}
+	p.next()
+	return list, nil
+}
+
+func (p *parser) parseFunction() (Expression, error) {
+	p.next()
+	fn := function{
+		ident: p.curr.Literal,
+	}
+	p.next()
+	args, err := p.parseParameters()
+	if err != nil {
+		return nil, err
+	}
+	fn.params = args
+
+	fn.body, err = p.parseBlock()
+	if err != nil {
+		return nil, err
+	}
+	return fn, nil
 }
 
 func (p *parser) parseBlock() (Expression, error) {
