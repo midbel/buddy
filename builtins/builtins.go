@@ -12,6 +12,10 @@ var Builtins = map[string]Builtin{
 	"lower":  Lower,
 	"printf": Printf,
 	"print":  Print,
+	"lshift": Lshift,
+	"rshift": Rshift,
+	"incr":   Incr,
+	"decr":   Decr,
 }
 
 func Lookup(name string) (Builtin, error) {

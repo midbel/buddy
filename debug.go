@@ -1,8 +1,8 @@
 package buddy
 
 import (
-	"io"
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -28,7 +28,7 @@ func printAST(w io.Writer, e Expression, level int) {
 	case call:
 		fmt.Fprintln(w, fmt.Sprintf("%scall(%s)", prefix, e.ident))
 		for i := range e.args {
-			printAST(w, e.args[i], level+1)	
+			printAST(w, e.args[i], level+1)
 		}
 	case binary:
 		fmt.Fprintln(w, prefix+"binary")
@@ -69,7 +69,7 @@ func printAST(w io.Writer, e Expression, level int) {
 	case parameter:
 		fmt.Fprintln(w, fmt.Sprintf("%parameter(%s)", prefix, e.ident))
 		if e.expr != nil {
-			printAST(w, e.expr, level+1)	
+			printAST(w, e.expr, level+1)
 		}
 	case boolean:
 		fmt.Fprintln(w, fmt.Sprintf("%sboolean(%t)", prefix, e.value))
