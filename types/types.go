@@ -14,6 +14,10 @@ var (
 	ErrZero         = errors.New("division by zero")
 )
 
+type Sizeable interface {
+	Len() int
+}
+
 type Primitive interface {
 	fmt.Stringer
 
@@ -57,6 +61,10 @@ func CreateString(str string) Primitive {
 	return String{
 		str: str,
 	}
+}
+
+func (s String) Len() int {
+	return len(s.str)
 }
 
 func (s String) Raw() any {
@@ -629,4 +637,20 @@ func (i Int) Ge(other Primitive) (Primitive, error) {
 		return nil, ErrIncompatible
 	}
 	return CreateBool(i.value >= x.value), nil
+}
+
+type Array struct {
+	values []Primitive
+}
+
+func (a Array) Len() int {
+	return len(a.values)
+}
+
+type Dict struct {
+	values map[any]Primitive
+}
+
+func (d Dict) Len() int {
+	return len(d.values)
 }

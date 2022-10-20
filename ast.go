@@ -81,6 +81,8 @@ type Expression interface {
 
 func createPrimitive(res interface{}) (Expression, error) {
 	switch r := res.(type) {
+	case int64:
+		return createNumber(float64(r)), nil
 	case float64:
 		return createNumber(r), nil
 	case bool:
