@@ -106,5 +106,5 @@ func replaceValue(expr Expression, env Resolver) (Expression, error) {
 }
 
 func inlineFunctionCall(expr Expression, env Resolver) (Expression, error) {
-	return nil, nil
+	return expr, nil
 }

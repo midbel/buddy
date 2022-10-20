@@ -15,6 +15,10 @@ var (
 )
 
 func Eval(r io.Reader) (any, error) {
+	return EvalWithEnv(r, EmptyEnv[any]())
+}
+
+func EvalWithEnv(r io.Reader, env *Environ[any]) (any, error) {
 	expr, err := Parse(r)
 	if err != nil {
 		return nil, err
@@ -23,11 +27,11 @@ func Eval(r io.Reader) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("can not create resolver from %T", s)
 	}
-	env := resolver{
-		Environ: EmptyEnv[any](),
+	resolv := resolver{
+		Environ: env,
 		symbols: s.symbols,
 	}
-	return Execute(expr, env)
+	return Execute(expr, resolv)	
 }
 
 func Execute(expr Expression, env Resolver) (any, error) {

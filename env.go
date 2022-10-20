@@ -7,7 +7,7 @@ import (
 )
 
 type Resolver interface {
-	Define(string, any)
+	Define(string, any) error
 	Resolve(string) (any, error)
 	Lookup(string) (Callable, error)
 
@@ -37,7 +37,7 @@ func (r resolver) getSymbols() map[string]Expression {
 
 type Environ[T any] struct {
 	parent *Environ[T]
-	values map[string]T
+	values map[string]value[T]
 }
 
 func EmptyEnv[T any]() *Environ[T] {
@@ -47,7 +47,7 @@ func EmptyEnv[T any]() *Environ[T] {
 func EnclosedEnv[T any](parent *Environ[T]) *Environ[T] {
 	return &Environ[T]{
 		parent: parent,
-		values: make(map[string]T),
+		values: make(map[string]value[T]),
 	}
 }
 
@@ -55,11 +55,22 @@ func (e *Environ[T]) Resolve(name string) (T, error) {
 	var zero T
 	v, ok := e.values[name]
 	if !ok {
-		return zero, fmt.Errorf("%s undefined variable")
+		return zero, fmt.Errorf("%s undefined variable", name)
 	}
-	return v, nil
+	return v.value, nil
 }
 
-func (e *Environ[T]) Define(name string, values T) {
-	e.values[name] = values
+func (e *Environ[T]) Define(name string, values T) error {
+	v, ok := e.values[name]
+	if ok && v.readonly {
+		return fmt.Errorf("%s readonly value", name)
+	}
+	v.value = values
+	e.values[name] = v
+	return nil
+}
+
+type value[T any] struct {
+	value    T
+	readonly bool
 }

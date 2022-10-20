@@ -37,15 +37,27 @@ func makeCallFromExpr(e Expression) (Callable, error) {
 }
 
 func (c callExpr) Call(res Resolver, args ...any) (any, error) {
-	if len(args) != len(c.fun.params) {
+	if len(args) > len(c.fun.params) {
 		return nil, fmt.Errorf("%s: invalid number of arguments given", c.fun.ident)
 	}
 	env := EmptyEnv[any]()
-	for i := range args {
-		p, _ := c.fun.params[i].(parameter)
-		env.Define(p.ident, args[i])
+	for i := range c.fun.params {
+		var (
+			p, _ = c.fun.params[i].(parameter)
+			a any
+		)
+		if i < len(args) {
+			a = args[i]
+		} else {
+			v, err := eval(p.expr, res)
+			if err != nil {
+				return nil, err
+			}
+			a = v
+		}
+		env.Define(p.ident, a)
 	}
-	sub := &resolver{
+	sub := resolver{
 		Environ: env,
 		symbols: res.getSymbols(),
 	}
