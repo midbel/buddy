@@ -6,20 +6,15 @@ import (
 	"github.com/midbel/buddy/builtins"
 )
 
-type Resolver interface {
-	Define(string, any) error
-	Resolve(string) (any, error)
-	Lookup(string) (Callable, error)
+const LimitRecurse = 1 << 10
 
-	getSymbols() map[string]Expression
-}
-
-type resolver struct {
+type Resolver struct {
+	level int
 	*Environ[any]
 	symbols map[string]Expression
 }
 
-func (r resolver) Lookup(name string) (Callable, error) {
+func (r *Resolver) Lookup(name string) (Callable, error) {
 	b, err := builtins.Lookup(name)
 	if err == nil {
 		return makeCallFromFunc(b), err
@@ -31,8 +26,16 @@ func (r resolver) Lookup(name string) (Callable, error) {
 	return makeCallFromExpr(e)
 }
 
-func (r resolver) getSymbols() map[string]Expression {
-	return r.symbols
+func (r *Resolver) enter() error {
+	if r.level >= LimitRecurse {
+		return fmt.Errorf("recursion limit reached!")
+	}
+	r.level++
+	return nil
+}
+
+func (r *Resolver) leave() {
+	r.level--
 }
 
 type Environ[T any] struct {

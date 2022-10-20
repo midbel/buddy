@@ -5,7 +5,7 @@ import (
 )
 
 type Callable interface {
-	Call(Resolver, ...any) (any, error)
+	Call(*Resolver, ...any) (any, error)
 }
 
 type callFunc struct {
@@ -18,7 +18,11 @@ func makeCallFromFunc(fn func(...any) (any, error)) Callable {
 	}
 }
 
-func (c callFunc) Call(_ Resolver, args ...any) (any, error) {
+func (c callFunc) Call(res *Resolver, args ...any) (any, error) {
+	if err := res.enter(); err != nil {
+		return nil, err
+	}
+	defer res.leave()
 	return c.fun(args...)
 }
 
@@ -36,7 +40,7 @@ func makeCallFromExpr(e Expression) (Callable, error) {
 	}, nil
 }
 
-func (c callExpr) Call(res Resolver, args ...any) (any, error) {
+func (c callExpr) Call(res *Resolver, args ...any) (any, error) {
 	if len(args) > len(c.fun.params) {
 		return nil, fmt.Errorf("%s: invalid number of arguments given", c.fun.ident)
 	}
@@ -44,7 +48,7 @@ func (c callExpr) Call(res Resolver, args ...any) (any, error) {
 	for i := range c.fun.params {
 		var (
 			p, _ = c.fun.params[i].(parameter)
-			a any
+			a    any
 		)
 		if i < len(args) {
 			a = args[i]
@@ -57,11 +61,16 @@ func (c callExpr) Call(res Resolver, args ...any) (any, error) {
 		}
 		env.Define(p.ident, a)
 	}
-	sub := resolver{
-		Environ: env,
-		symbols: res.getSymbols(),
+	if err := res.enter(); err != nil {
+		return nil, err
 	}
-	return eval(c.fun.body, sub)
+	old := res.Environ
+	defer func() {
+		res.Environ = old
+		res.leave()
+	}()
+	res.Environ = env
+	return eval(c.fun.body, res)
 }
 
 type Expression interface {

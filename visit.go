@@ -1,8 +1,8 @@
 package buddy
 
-type visitFunc func(Expression, Resolver) (Expression, error)
+type visitFunc func(Expression, *Resolver) (Expression, error)
 
-func traverse(expr Expression, env Resolver, visit []visitFunc) (Expression, error) {
+func traverse(expr Expression, env *Resolver, visit []visitFunc) (Expression, error) {
 	var err error
 	for _, v := range visit {
 		expr, err = v(expr, env)
@@ -13,7 +13,7 @@ func traverse(expr Expression, env Resolver, visit []visitFunc) (Expression, err
 	return expr, err
 }
 
-func replaceExprList(list []Expression, env Resolver) ([]Expression, error) {
+func replaceExprList(list []Expression, env *Resolver) ([]Expression, error) {
 	var err error
 	for i := range list {
 		list[i], err = replaceValue(list[i], env)
@@ -24,7 +24,7 @@ func replaceExprList(list []Expression, env Resolver) ([]Expression, error) {
 	return list, err
 }
 
-func replaceValue(expr Expression, env Resolver) (Expression, error) {
+func replaceValue(expr Expression, env *Resolver) (Expression, error) {
 	var err error
 	switch e := expr.(type) {
 	case script:
@@ -105,6 +105,6 @@ func replaceValue(expr Expression, env Resolver) (Expression, error) {
 	}
 }
 
-func inlineFunctionCall(expr Expression, env Resolver) (Expression, error) {
+func inlineFunctionCall(expr Expression, env *Resolver) (Expression, error) {
 	return expr, nil
 }

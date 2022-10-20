@@ -6,6 +6,8 @@ import (
 	"io"
 	"math"
 	"strings"
+
+	"github.com/midbel/buddy/builtins"
 )
 
 var (
@@ -27,14 +29,14 @@ func EvalWithEnv(r io.Reader, env *Environ[any]) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("can not create resolver from %T", s)
 	}
-	resolv := resolver{
+	resolv := Resolver{
 		Environ: env,
 		symbols: s.symbols,
 	}
-	return Execute(expr, resolv)	
+	return Execute(expr, &resolv)
 }
 
-func Execute(expr Expression, env Resolver) (any, error) {
+func Execute(expr Expression, env *Resolver) (any, error) {
 	var (
 		err  error
 		list = []visitFunc{
@@ -48,7 +50,7 @@ func Execute(expr Expression, env Resolver) (any, error) {
 	return eval(expr, env)
 }
 
-func eval(expr Expression, env Resolver) (any, error) {
+func eval(expr Expression, env *Resolver) (any, error) {
 	var (
 		res any
 		err error
@@ -58,6 +60,9 @@ func eval(expr Expression, env Resolver) (any, error) {
 		for _, e := range e.list {
 			res, err = eval(e, env)
 			if err != nil && !errors.Is(err, errReturn) {
+				if builtins.IsExit(err) {
+					return res, err
+				}
 				break
 			}
 			if errors.Is(err, errReturn) {
@@ -105,7 +110,7 @@ func eval(expr Expression, env Resolver) (any, error) {
 	return res, err
 }
 
-func evalUnary(u unary, env Resolver) (any, error) {
+func evalUnary(u unary, env *Resolver) (any, error) {
 	res, err := eval(u.right, env)
 	if err != nil {
 		return nil, err
@@ -124,7 +129,7 @@ func evalUnary(u unary, env Resolver) (any, error) {
 	}
 }
 
-func evalBinary(b binary, env Resolver) (any, error) {
+func evalBinary(b binary, env *Resolver) (any, error) {
 	left, err := eval(b.left, env)
 	if err != nil {
 		return nil, err
@@ -167,7 +172,7 @@ func evalBinary(b binary, env Resolver) (any, error) {
 	}
 }
 
-func evalTest(t test, env Resolver) (any, error) {
+func evalTest(t test, env *Resolver) (any, error) {
 	res, err := eval(t.cdt, env)
 	if err != nil {
 		return nil, err
@@ -181,7 +186,7 @@ func evalTest(t test, env Resolver) (any, error) {
 	return eval(t.alt, env)
 }
 
-func evalWhile(w while, env Resolver) (any, error) {
+func evalWhile(w while, env *Resolver) (any, error) {
 	var (
 		res any
 		err error
@@ -208,7 +213,7 @@ func evalWhile(w while, env Resolver) (any, error) {
 	return res, nil
 }
 
-func evalAssign(a assign, env Resolver) (any, error) {
+func evalAssign(a assign, env *Resolver) (any, error) {
 	res, err := eval(a.right, env)
 	if err != nil {
 		return nil, err
@@ -217,7 +222,7 @@ func evalAssign(a assign, env Resolver) (any, error) {
 	return nil, nil
 }
 
-func evalCall(c call, env Resolver) (any, error) {
+func evalCall(c call, env *Resolver) (any, error) {
 	var (
 		args []any
 		res  any

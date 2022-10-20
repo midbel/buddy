@@ -1,13 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
-	"bufio"
 	"os"
 	"strings"
 
 	"github.com/midbel/buddy"
+	"github.com/midbel/buddy/builtins"
 )
 
 const (
@@ -22,9 +23,9 @@ func main() {
 
 func repl() {
 	var (
-		cmd int
+		cmd  int
 		scan = bufio.NewScanner(os.Stdin)
-		env = buddy.EmptyEnv[any]()
+		env  = buddy.EmptyEnv[any]()
 	)
 	cmd++
 	io.WriteString(os.Stdout, fmt.Sprintf(in, cmd))
@@ -37,6 +38,10 @@ func repl() {
 		}
 		res, err := buddy.EvalWithEnv(strings.NewReader(line), env)
 		if err != nil {
+			if builtins.IsExit(err) {
+				code, _ := res.(float64)
+				os.Exit(int(code))
+			}
 			fmt.Fprintf(os.Stderr, fmt.Sprintf(nok, cmd, err))
 			fmt.Fprintln(os.Stderr)
 		} else {

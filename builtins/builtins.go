@@ -16,6 +16,7 @@ var Builtins = map[string]BuiltinFunc{
 	"rshift": Rshift,
 	"incr":   Incr,
 	"decr":   Decr,
+	"exit":   Exit,
 }
 
 func Lookup(name string) (BuiltinFunc, error) {
