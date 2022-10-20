@@ -3,6 +3,7 @@ package buddy
 import (
 	"fmt"
 	"io"
+	"math"
 	"strings"
 )
 
@@ -21,9 +22,12 @@ func printAST(w io.Writer, e Expression, level int) {
 	}
 	switch e := e.(type) {
 	case script:
-		fmt.Fprintln(w, prefix+"script")
+		fmt.Fprintln(w, prefix+"block")
 		for i := range e.list {
 			printAST(w, e.list[i], level+1)
+		}
+		for _, f := range e.symbols {
+			printAST(w, f, level)
 		}
 	case call:
 		fmt.Fprintln(w, fmt.Sprintf("%scall(%s)", prefix, e.ident))
@@ -31,11 +35,11 @@ func printAST(w io.Writer, e Expression, level int) {
 			printAST(w, e.args[i], level+1)
 		}
 	case binary:
-		fmt.Fprintln(w, prefix+"binary")
+		fmt.Fprintln(w, fmt.Sprintf("%sbinary(%s)", prefix, binaryOp(e.op)))
 		printAST(w, e.left, level+1)
 		printAST(w, e.right, level+1)
 	case unary:
-		fmt.Fprintln(w, prefix+"unary")
+		fmt.Fprintln(w, fmt.Sprintf("%sunary(%s)", prefix, unaryOp(e.op)))
 		printAST(w, e.right, level+1)
 	case assign:
 		fmt.Fprintln(w, fmt.Sprintf("%sassign(%s)", prefix, e.ident))
@@ -67,15 +71,61 @@ func printAST(w io.Writer, e Expression, level int) {
 		}
 		printAST(w, e.body, level+1)
 	case parameter:
-		fmt.Fprintln(w, fmt.Sprintf("%parameter(%s)", prefix, e.ident))
+		fmt.Fprintln(w, fmt.Sprintf("%sparameter(%s)", prefix, e.ident))
 		if e.expr != nil {
 			printAST(w, e.expr, level+1)
 		}
 	case boolean:
 		fmt.Fprintln(w, fmt.Sprintf("%sboolean(%t)", prefix, e.value))
 	case number:
-		fmt.Fprintln(w, fmt.Sprintf("%snumber(%.5f)", prefix, e.value))
+		if math.Round(e.value) == e.value {
+			fmt.Fprintln(w, fmt.Sprintf("%snumber(%d)", prefix, int(e.value)))
+		} else {
+			fmt.Fprintln(w, fmt.Sprintf("%snumber(%f)", prefix, e.value))
+		}
 	case literal:
-		fmt.Fprintln(w, fmt.Sprintf("%sliteral(%.5f)", prefix, e.str))
+		fmt.Fprintln(w, fmt.Sprintf("%sliteral(%s)", prefix, e.str))
 	}
+}
+
+func unaryOp(op rune) string {
+	switch op {
+	case Sub:
+		return "rev"
+	case Not:
+		return "not"
+	}
+	return "?"
+}
+
+func binaryOp(op rune) string {
+	switch op {
+	case Add:
+		return "add"
+	case Sub:
+		return "sub"
+	case Div:
+		return "div"
+	case Mod:
+		return "mod"
+	case Pow:
+		return "pow"
+	case And:
+		return "and"
+	case Or:
+		return "or"
+	case Eq:
+		return "eq"
+	case Ne:
+		return "ne"
+	case Lt:
+		return "lt"
+	case Le:
+		return "le"
+	case Gt:
+		return "gt"
+	case Ge:
+		return "ge"
+	}
+	return "?"
 }

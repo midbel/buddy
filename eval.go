@@ -33,7 +33,10 @@ func Eval(r io.Reader) (any, error) {
 func Execute(expr Expression, env Resolver) (any, error) {
 	var (
 		err  error
-		list = []visitFunc{replaceValue}
+		list = []visitFunc{
+			inlineFunctionCall,
+			replaceValue,
+		}
 	)
 	if expr, err = traverse(expr, env, list); err != nil {
 		return nil, err

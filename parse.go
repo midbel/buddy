@@ -85,6 +85,7 @@ func Parse(r io.Reader) (Expression, error) {
 		Literal: p.parsePrefix,
 		Ident:   p.parsePrefix,
 		Lparen:  p.parseGroup,
+		Lcurly:  p.parseScript,
 		Keyword: p.parseKeyword,
 	}
 	p.infix = map[rune]func(Expression) (Expression, error){
@@ -184,6 +185,26 @@ func (p *parser) parseSpecial() (bool, error) {
 		}
 		return true, err
 	}
+}
+
+func (p *parser) parseScript() (Expression, error) {
+	p.next()
+	var s script
+	for p.curr.Type != Rcurly && !p.done() {
+		e, err := p.parse(powLowest)
+		if err != nil {
+			return nil, err
+		}
+		if err := p.eol(); err != nil {
+			return nil, err
+		}
+		s.list = append(s.list, e)
+	}
+	if p.curr.Type != Rcurly {
+		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+	}
+	p.next()
+	return s, nil
 }
 
 func (p *parser) parseKeyword() (Expression, error) {
@@ -574,6 +595,12 @@ func (p *parser) eol() error {
 		return fmt.Errorf("syntax error! missing eol")
 	}
 	return nil
+}
+
+func (p *parser) skip(r rune) {
+	for p.curr.Type == r {
+		p.next()
+	}
 }
 
 func (p *parser) done() bool {
