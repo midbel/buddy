@@ -158,29 +158,52 @@ func (s String) True() bool {
 }
 
 func (s String) Eq(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(String)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(s.str == x.str), nil
 }
 
 func (s String) Ne(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(String)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(s.str != x.str), nil
 }
 
 func (s String) Lt(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(String)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(s.str < x.str), nil
 }
 
 func (s String) Le(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(String)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(s.str <= x.str), nil
 }
 
 func (s String) Gt(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(String)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(s.str > x.str), nil
 }
 
 func (s String) Ge(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(String)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(s.str >= x.str), nil
 }
-
 
 type Bool struct {
 	value bool
@@ -238,11 +261,19 @@ func (b Bool) True() bool {
 }
 
 func (b Bool) Eq(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(Bool)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(b.value == x.value), nil
 }
 
 func (b Bool) Ne(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(Bool)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(b.value != x.value), nil
 }
 
 func (b Bool) Lt(other Primitive) (Primitive, error) {
@@ -260,7 +291,6 @@ func (b Bool) Gt(other Primitive) (Primitive, error) {
 func (b Bool) Ge(other Primitive) (Primitive, error) {
 	return nil, ErrOperation
 }
-
 
 type Float struct {
 	value float64
@@ -381,27 +411,51 @@ func (f Float) True() bool {
 }
 
 func (f Float) Eq(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(Float)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(f.value == x.value), nil
 }
 
 func (f Float) Ne(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(Float)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(f.value != x.value), nil
 }
 
 func (f Float) Lt(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(Float)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(f.value < x.value), nil
 }
 
 func (f Float) Le(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(Float)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(f.value <= x.value), nil
 }
 
 func (f Float) Gt(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(Float)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(f.value > x.value), nil
 }
 
 func (f Float) Ge(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(Float)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(f.value >= x.value), nil
 }
 
 type Int struct {
@@ -530,20 +584,49 @@ func (i Int) True() bool {
 }
 
 func (i Int) Eq(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(Int)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(i.value == x.value), nil
 }
+
 func (i Int) Ne(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(Int)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(i.value != x.value), nil
 }
+
 func (i Int) Lt(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(Int)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(i.value < x.value), nil
 }
+
 func (i Int) Le(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(Int)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(i.value <= x.value), nil
 }
+
 func (i Int) Gt(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(Int)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(i.value > x.value), nil
 }
+
 func (i Int) Ge(other Primitive) (Primitive, error) {
-	return nil, ErrOperation
+	x, ok := other.(Int)
+	if !ok {
+		return nil, ErrIncompatible
+	}
+	return CreateBool(i.value >= x.value), nil
 }

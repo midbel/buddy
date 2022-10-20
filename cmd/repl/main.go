@@ -47,6 +47,7 @@ func repl() {
 		} else {
 			fmt.Fprintf(os.Stdout, ok, cmd, res)
 			fmt.Fprintln(os.Stdout)
+			env.Define("_", res)
 		}
 		cmd++
 		io.WriteString(os.Stdout, fmt.Sprintf(in, cmd))
