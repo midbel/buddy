@@ -4,13 +4,14 @@ import (
 	"fmt"
 
 	"github.com/midbel/buddy/builtins"
+	"github.com/midbel/buddy/types"
 )
 
 const LimitRecurse = 1 << 10
 
 type Resolver struct {
 	level int
-	*Environ[any]
+	*Environ
 	symbols map[string]Expression
 }
 
@@ -38,42 +39,41 @@ func (r *Resolver) leave() {
 	r.level--
 }
 
-type Environ[T any] struct {
-	parent *Environ[T]
-	values map[string]value[T]
+type Environ struct {
+	parent *Environ
+	values map[string]value
 }
 
-func EmptyEnv[T any]() *Environ[T] {
-	return EnclosedEnv[T](nil)
+func EmptyEnv() *Environ {
+	return EnclosedEnv(nil)
 }
 
-func EnclosedEnv[T any](parent *Environ[T]) *Environ[T] {
-	return &Environ[T]{
+func EnclosedEnv(parent *Environ) *Environ {
+	return &Environ{
 		parent: parent,
-		values: make(map[string]value[T]),
+		values: make(map[string]value),
 	}
 }
 
-func (e *Environ[T]) Resolve(name string) (T, error) {
-	var zero T
+func (e *Environ) Resolve(name string) (types.Primitive, error) {
 	v, ok := e.values[name]
 	if !ok {
-		return zero, fmt.Errorf("%s undefined variable", name)
+		return nil, fmt.Errorf("%s undefined variable", name)
 	}
 	return v.value, nil
 }
 
-func (e *Environ[T]) Define(name string, values T) error {
+func (e *Environ) Define(name string, value types.Primitive) error {
 	v, ok := e.values[name]
 	if ok && v.readonly {
 		return fmt.Errorf("%s readonly value", name)
 	}
-	v.value = values
+	v.value = value
 	e.values[name] = v
 	return nil
 }
 
-type value[T any] struct {
-	value    T
+type value struct {
+	value    types.Primitive
 	readonly bool
 }

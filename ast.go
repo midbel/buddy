@@ -2,23 +2,25 @@ package buddy
 
 import (
 	"fmt"
+
+	"github.com/midbel/buddy/types"
 )
 
 type Callable interface {
-	Call(*Resolver, ...any) (any, error)
+	Call(*Resolver, ...types.Primitive) (types.Primitive, error)
 }
 
 type callFunc struct {
-	fun func(...any) (any, error)
+	fun func(...types.Primitive) (types.Primitive, error)
 }
 
-func makeCallFromFunc(fn func(...any) (any, error)) Callable {
+func makeCallFromFunc(fn func(...types.Primitive) (types.Primitive, error)) Callable {
 	return callFunc{
 		fun: fn,
 	}
 }
 
-func (c callFunc) Call(res *Resolver, args ...any) (any, error) {
+func (c callFunc) Call(res *Resolver, args ...types.Primitive) (types.Primitive, error) {
 	if err := res.enter(); err != nil {
 		return nil, err
 	}
@@ -40,15 +42,15 @@ func makeCallFromExpr(e Expression) (Callable, error) {
 	}, nil
 }
 
-func (c callExpr) Call(res *Resolver, args ...any) (any, error) {
+func (c callExpr) Call(res *Resolver, args ...types.Primitive) (types.Primitive, error) {
 	if len(args) > len(c.fun.params) {
 		return nil, fmt.Errorf("%s: invalid number of arguments given", c.fun.ident)
 	}
-	env := EmptyEnv[any]()
+	env := EmptyEnv()
 	for i := range c.fun.params {
 		var (
 			p, _ = c.fun.params[i].(parameter)
-			a    any
+			a    types.Primitive
 		)
 		if i < len(args) {
 			a = args[i]

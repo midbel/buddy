@@ -2,9 +2,11 @@ package builtins
 
 import (
 	"fmt"
+
+	"github.com/midbel/buddy/types"
 )
 
-type BuiltinFunc func(...any) (any, error)
+type BuiltinFunc func(...types.Primitive) (types.Primitive, error)
 
 var Builtins = map[string]BuiltinFunc{
 	"len":    Len,

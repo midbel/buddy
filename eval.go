@@ -4,10 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
-	"strings"
 
 	"github.com/midbel/buddy/builtins"
+	"github.com/midbel/buddy/types"
 )
 
 var (
@@ -16,11 +15,11 @@ var (
 	errReturn   = errors.New("return")
 )
 
-func Eval(r io.Reader) (any, error) {
-	return EvalWithEnv(r, EmptyEnv[any]())
+func Eval(r io.Reader) (types.Primitive, error) {
+	return EvalWithEnv(r, EmptyEnv())
 }
 
-func EvalWithEnv(r io.Reader, env *Environ[any]) (any, error) {
+func EvalWithEnv(r io.Reader, env *Environ) (types.Primitive, error) {
 	expr, err := Parse(r)
 	if err != nil {
 		return nil, err
@@ -36,7 +35,7 @@ func EvalWithEnv(r io.Reader, env *Environ[any]) (any, error) {
 	return Execute(expr, &resolv)
 }
 
-func Execute(expr Expression, env *Resolver) (any, error) {
+func Execute(expr Expression, env *Resolver) (types.Primitive, error) {
 	var (
 		err  error
 		list = []visitFunc{
@@ -50,25 +49,14 @@ func Execute(expr Expression, env *Resolver) (any, error) {
 	return eval(expr, env)
 }
 
-func eval(expr Expression, env *Resolver) (any, error) {
+func eval(expr Expression, env *Resolver) (types.Primitive, error) {
 	var (
-		res any
+		res types.Primitive
 		err error
 	)
 	switch e := expr.(type) {
 	case script:
-		for _, e := range e.list {
-			res, err = eval(e, env)
-			if err != nil && !errors.Is(err, errReturn) {
-				if builtins.IsExit(err) {
-					return res, err
-				}
-				break
-			}
-			if errors.Is(err, errReturn) {
-				return res, nil
-			}
-		}
+		res, err = evalScript(e, env)
 	case call:
 		res, err = evalCall(e, env)
 		if errors.Is(err, errReturn) {
@@ -76,11 +64,11 @@ func eval(expr Expression, env *Resolver) (any, error) {
 		}
 		return res, err
 	case literal:
-		return e.str, nil
+		return types.CreateString(e.str), nil
 	case number:
-		return e.value, nil
+		return types.CreateFloat(e.value), nil
 	case boolean:
-		return e.value, nil
+		return types.CreateBool(e.value), nil
 	case variable:
 		return env.Resolve(e.ident)
 	case unary:
@@ -98,9 +86,6 @@ func eval(expr Expression, env *Resolver) (any, error) {
 			return nil, errReturn
 		}
 		res, err = eval(e.right, env)
-		if err != nil {
-			return nil, err
-		}
 		return res, errReturn
 	case breaked:
 		return nil, errBreak
@@ -110,26 +95,42 @@ func eval(expr Expression, env *Resolver) (any, error) {
 	return res, err
 }
 
-func evalUnary(u unary, env *Resolver) (any, error) {
+func evalScript(s script, env *Resolver) (types.Primitive, error) {
+	var (
+		res types.Primitive
+		err error
+	)
+	for _, e := range s.list {
+		res, err = eval(e, env)
+		if err != nil && !errors.Is(err, errReturn) {
+			if builtins.IsExit(err) {
+				return res, err
+			}
+			break
+		}
+		if errors.Is(err, errReturn) {
+			return res, nil
+		}
+	}
+	return res, err
+}
+
+func evalUnary(u unary, env *Resolver) (types.Primitive, error) {
 	res, err := eval(u.right, env)
 	if err != nil {
 		return nil, err
 	}
 	switch u.op {
 	case Not:
-		return !isTruthy(res), nil
+		return res.Not()
 	case Sub:
-		f, ok := res.(float64)
-		if !ok {
-			return nil, fmt.Errorf("expected float")
-		}
-		return -f, nil
+		return res.Rev()
 	default:
 		return nil, fmt.Errorf("unsupported unary operator")
 	}
 }
 
-func evalBinary(b binary, env *Resolver) (any, error) {
+func evalBinary(b binary, env *Resolver) (types.Primitive, error) {
 	left, err := eval(b.left, env)
 	if err != nil {
 		return nil, err
@@ -142,42 +143,42 @@ func evalBinary(b binary, env *Resolver) (any, error) {
 	default:
 		return nil, fmt.Errorf("unsupported binary operator")
 	case Add:
-		return execAdd(left, right)
+		return left.Add(right)
 	case Sub:
-		return execSub(left, right)
+		return left.Sub(right)
 	case Mul:
-		return execMul(left, right)
+		return left.Mul(right)
 	case Div:
-		return execDiv(left, right)
+		return left.Div(right)
 	case Pow:
-		return execPow(left, right)
+		return left.Pow(right)
 	case Mod:
-		return execMod(left, right)
+		return left.Mod(right)
 	case And:
-		return execAnd(left, right)
+		return types.And(left, right)
 	case Or:
-		return execOr(left, right)
+		return types.Or(left, right)
 	case Eq:
-		return execEqual(left, right, false)
+		return left.Eq(right)
 	case Ne:
-		return execEqual(left, right, true)
+		return left.Ne(right)
 	case Lt:
-		return execLesser(left, right, false)
+		return left.Lt(right)
 	case Le:
-		return execLesser(left, right, true)
+		return left.Le(right)
 	case Gt:
-		return execGreater(left, right, false)
+		return left.Gt(right)
 	case Ge:
-		return execGreater(left, right, true)
+		return left.Ge(right)
 	}
 }
 
-func evalTest(t test, env *Resolver) (any, error) {
+func evalTest(t test, env *Resolver) (types.Primitive, error) {
 	res, err := eval(t.cdt, env)
 	if err != nil {
 		return nil, err
 	}
-	if isTruthy(res) {
+	if res.True() {
 		return eval(t.csq, env)
 	}
 	if t.alt == nil {
@@ -186,9 +187,9 @@ func evalTest(t test, env *Resolver) (any, error) {
 	return eval(t.alt, env)
 }
 
-func evalWhile(w while, env *Resolver) (any, error) {
+func evalWhile(w while, env *Resolver) (types.Primitive, error) {
 	var (
-		res any
+		res types.Primitive
 		err error
 	)
 	for {
@@ -196,7 +197,7 @@ func evalWhile(w while, env *Resolver) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		if !isTruthy(res) {
+		if !res.True() {
 			break
 		}
 		res, err = eval(w.body, env)
@@ -213,7 +214,7 @@ func evalWhile(w while, env *Resolver) (any, error) {
 	return res, nil
 }
 
-func evalAssign(a assign, env *Resolver) (any, error) {
+func evalAssign(a assign, env *Resolver) (types.Primitive, error) {
 	res, err := eval(a.right, env)
 	if err != nil {
 		return nil, err
@@ -222,10 +223,10 @@ func evalAssign(a assign, env *Resolver) (any, error) {
 	return nil, nil
 }
 
-func evalCall(c call, env *Resolver) (any, error) {
+func evalCall(c call, env *Resolver) (types.Primitive, error) {
 	var (
-		args []any
-		res  any
+		args []types.Primitive
+		res  types.Primitive
 		err  error
 	)
 	for _, a := range c.args {
@@ -240,220 +241,4 @@ func evalCall(c call, env *Resolver) (any, error) {
 		return nil, err
 	}
 	return call.Call(env, args...)
-}
-
-func execLesser(left, right any, eq bool) (any, error) {
-	switch x := left.(type) {
-	case float64:
-		y, ok := right.(float64)
-		if !ok {
-			return nil, fmt.Errorf("incompatible type for comparison")
-		}
-		return isLesser(x, y, eq), nil
-	case string:
-		y, ok := right.(string)
-		if !ok {
-			return nil, fmt.Errorf("incompatible type for comparison")
-		}
-		return isLesser(x, y, eq), nil
-	default:
-		return nil, fmt.Errorf("type can not be compared")
-	}
-}
-
-func execGreater(left, right any, eq bool) (any, error) {
-	switch x := left.(type) {
-	case float64:
-		y, ok := right.(float64)
-		if !ok {
-			return nil, fmt.Errorf("incompatible type for comparison")
-		}
-		return isGreater(x, y, eq), nil
-	case string:
-		y, ok := right.(string)
-		if !ok {
-			return nil, fmt.Errorf("incompatible type for comparison")
-		}
-		return isGreater(x, y, eq), nil
-	default:
-		return nil, fmt.Errorf("type can not be compared")
-	}
-}
-
-func execEqual(left, right any, ne bool) (any, error) {
-	switch x := left.(type) {
-	case float64:
-		y, ok := right.(float64)
-		if !ok {
-			return nil, fmt.Errorf("incompatible type for equality")
-		}
-		return isEqual(x, y, ne), nil
-	case string:
-		y, ok := right.(string)
-		if !ok {
-			return nil, fmt.Errorf("incompatible type for equality")
-		}
-		return isEqual(x, y, ne), nil
-	case bool:
-		y, ok := right.(bool)
-		if !ok {
-			return nil, fmt.Errorf("incompatible type for equality")
-		}
-		return isEqual(x, y, ne), nil
-	default:
-		return nil, fmt.Errorf("type can not be compared")
-	}
-	return nil, nil
-}
-
-func isEqual[T float64 | string | bool](left, right T, ne bool) bool {
-	ok := left == right
-	if ne {
-		ok = !ok
-	}
-	return ok
-}
-
-func isLesser[T float64 | string](left, right T, eq bool) bool {
-	ok := left < right
-	if !ok && eq {
-		ok = left == right
-	}
-	return ok
-}
-
-func isGreater[T float64 | string](left, right T, eq bool) bool {
-	ok := left > right
-	if !ok && eq {
-		ok = left == right
-	}
-	return ok
-}
-
-func execAnd(left, right any) (any, error) {
-	return isTruthy(left) && isTruthy(right), nil
-}
-func execOr(left, right any) (any, error) {
-	return isTruthy(left) || isTruthy(right), nil
-}
-
-func execAdd(left, right any) (any, error) {
-	switch x := left.(type) {
-	case float64:
-		if y, ok := right.(float64); ok {
-			return x + y, nil
-		}
-		if y, ok := right.(string); ok {
-			return fmt.Sprintf("%f%s", x, y), nil
-		}
-		return nil, fmt.Errorf("incompatible type for addition")
-	case string:
-		if y, ok := right.(float64); ok {
-			return fmt.Sprintf("%s%f", x, y), nil
-		}
-		if y, ok := right.(string); ok {
-			return x + y, nil
-		}
-		return nil, fmt.Errorf("incompatible type for addition")
-	default:
-		return nil, fmt.Errorf("left value should be literal or number")
-	}
-}
-
-func execSub(left, right any) (any, error) {
-	switch x := left.(type) {
-	case float64:
-		if y, ok := right.(float64); ok {
-			return x - y, nil
-		}
-		return nil, fmt.Errorf("incompatible type for subtraction")
-	case string:
-		if y, ok := right.(float64); ok {
-			if y < 0 && int(math.Abs(y)) < len(x) {
-				y = math.Abs(y)
-				return x[int(y):], nil
-			}
-			if y > 0 && int(y) < len(x) {
-				return x[:int(y)], nil
-			}
-		}
-		return nil, fmt.Errorf("incompatible type for subtraction")
-	default:
-		return nil, fmt.Errorf("left value should be literal or number")
-	}
-}
-
-func execMul(left, right any) (any, error) {
-	switch x := left.(type) {
-	case float64:
-		if y, ok := right.(float64); ok {
-			return x * y, nil
-		}
-		if y, ok := right.(string); ok {
-			return strings.Repeat(y, int(x)), nil
-		}
-		return nil, fmt.Errorf("incompatible type for multiply")
-	case string:
-		if y, ok := right.(float64); ok {
-			return strings.Repeat(x, int(y)), nil
-		}
-		return nil, fmt.Errorf("incompatible type for multiply")
-	default:
-		return nil, fmt.Errorf("left value should be literal or number")
-	}
-}
-
-func execDiv(left, right any) (any, error) {
-	switch x := left.(type) {
-	case float64:
-		if y, ok := right.(float64); ok {
-			if y < 0 {
-				return nil, fmt.Errorf("division by zero")
-			}
-			return x / y, nil
-		}
-		return nil, fmt.Errorf("incompatible type for division")
-	case string:
-		if y, ok := right.(float64); ok && y > 0 {
-			z := len(x) / int(y)
-			return x[:z], nil
-		}
-		return nil, fmt.Errorf("incompatible type for division")
-	default:
-		return nil, fmt.Errorf("left value should be literal or number")
-	}
-}
-
-func execMod(left, right any) (any, error) {
-	x, ok1 := left.(float64)
-	y, ok2 := right.(float64)
-	if !ok1 || !ok2 {
-		return nil, fmt.Errorf("incompatible type for modulo")
-	}
-	if y == 0 {
-		return nil, fmt.Errorf("division by zero")
-	}
-	return math.Mod(x, y), nil
-}
-
-func execPow(left, right any) (any, error) {
-	x, ok1 := left.(float64)
-	y, ok2 := right.(float64)
-	if !ok1 || !ok2 {
-		return nil, fmt.Errorf("incompatible type for power")
-	}
-	return math.Pow(x, y), nil
-}
-
-func isTruthy(v any) bool {
-	switch x := v.(type) {
-	case bool:
-		return x
-	case float64:
-		return x != 0
-	case string:
-		return x != ""
-	default:
-		return v != nil
-	}
 }

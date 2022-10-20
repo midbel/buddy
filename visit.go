@@ -43,7 +43,7 @@ func replaceValue(expr Expression, env *Resolver) (Expression, error) {
 			if err != nil {
 				return nil, err
 			}
-			return createPrimitive(res)
+			return createPrimitive(res.Raw())
 		}
 		return e, nil
 	case binary:
@@ -60,7 +60,7 @@ func replaceValue(expr Expression, env *Resolver) (Expression, error) {
 			if err != nil {
 				return nil, err
 			}
-			return createPrimitive(res)
+			return createPrimitive(res.Raw())
 		}
 		return e, nil
 	case assign:
