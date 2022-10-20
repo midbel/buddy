@@ -134,16 +134,8 @@ func (p *parser) Parse() (Expression, error) {
 			return nil, err
 		}
 	}
-	var e Expression
-	switch len(s.list) {
-	case 0:
-		return nil, fmt.Errorf("empty script given")
-	case 1:
-		e = s.list[0]
-	default:
-		e = s
-	}
-	return e, nil
+	s.symbols = p.symbols
+	return s, nil
 }
 
 func (p *parser) parse(pow int) (Expression, error) {

@@ -4,9 +4,9 @@ import (
 	"fmt"
 )
 
-type Builtin func(...any) (any, error)
+type BuiltinFunc func(...any) (any, error)
 
-var Builtins = map[string]Builtin{
+var Builtins = map[string]BuiltinFunc{
 	"len":    Len,
 	"upper":  Upper,
 	"lower":  Lower,
@@ -18,7 +18,7 @@ var Builtins = map[string]Builtin{
 	"decr":   Decr,
 }
 
-func Lookup(name string) (Builtin, error) {
+func Lookup(name string) (BuiltinFunc, error) {
 	b, ok := Builtins[name]
 	if !ok {
 		return nil, fmt.Errorf("%s: builtin not defined", name)

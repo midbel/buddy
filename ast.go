@@ -4,6 +4,54 @@ import (
 	"fmt"
 )
 
+type Callable interface {
+	Call(Resolver, ...any) (any, error)
+}
+
+type callFunc struct {
+	fun func(...any) (any, error)
+}
+
+func makeCallFromFunc(fn func(...any) (any, error)) Callable {
+	return callFunc{
+		fun: fn,
+	}
+}
+
+func (c callFunc) Call(_ Resolver, args ...any) (any, error) {
+	return c.fun(args...)
+}
+
+type callExpr struct {
+	fun function
+}
+
+func makeCallFromExpr(e Expression) (Callable, error) {
+	f, ok := e.(function)
+	if !ok {
+		return nil, fmt.Errorf("expression is not a function")
+	}
+	return callExpr{
+		fun: f,
+	}, nil
+}
+
+func (c callExpr) Call(res Resolver, args ...any) (any, error) {
+	if len(args) != len(c.fun.params) {
+		return nil, fmt.Errorf("%s: invalid number of arguments given", c.fun.ident)
+	}
+	env := EmptyEnv[any]()
+	for i := range args {
+		p, _ := c.fun.params[i].(parameter)
+		env.Define(p.ident, args[i])
+	}
+	sub := &resolver{
+		Environ: env,
+		symbols: res.getSymbols(),
+	}
+	return eval(c.fun.body, sub)
+}
+
 type Expression interface {
 	isPrimitive() bool
 }
@@ -148,7 +196,8 @@ func (_ binary) isPrimitive() bool {
 }
 
 type script struct {
-	list []Expression
+	list    []Expression
+	symbols map[string]Expression
 }
 
 func (_ script) isPrimitive() bool {

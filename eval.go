@@ -6,8 +6,6 @@ import (
 	"io"
 	"math"
 	"strings"
-
-	"github.com/midbel/buddy/builtins"
 )
 
 var (
@@ -21,11 +19,18 @@ func Eval(r io.Reader) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	env := EmptyEnv[any]()
+	s, ok := expr.(script)
+	if !ok {
+		return nil, fmt.Errorf("can not create resolver from %T", s)
+	}
+	env := resolver{
+		Environ: EmptyEnv[any](),
+		symbols: s.symbols,
+	}
 	return Execute(expr, env)
 }
 
-func Execute(expr Expression, env *Environ[any]) (any, error) {
+func Execute(expr Expression, env Resolver) (any, error) {
 	var (
 		err  error
 		list = []visitFunc{replaceValue}
@@ -36,7 +41,7 @@ func Execute(expr Expression, env *Environ[any]) (any, error) {
 	return eval(expr, env)
 }
 
-func eval(expr Expression, env *Environ[any]) (any, error) {
+func eval(expr Expression, env Resolver) (any, error) {
 	var (
 		res any
 		err error
@@ -93,7 +98,7 @@ func eval(expr Expression, env *Environ[any]) (any, error) {
 	return res, err
 }
 
-func evalUnary(u unary, env *Environ[any]) (any, error) {
+func evalUnary(u unary, env Resolver) (any, error) {
 	res, err := eval(u.right, env)
 	if err != nil {
 		return nil, err
@@ -112,7 +117,7 @@ func evalUnary(u unary, env *Environ[any]) (any, error) {
 	}
 }
 
-func evalBinary(b binary, env *Environ[any]) (any, error) {
+func evalBinary(b binary, env Resolver) (any, error) {
 	left, err := eval(b.left, env)
 	if err != nil {
 		return nil, err
@@ -155,7 +160,7 @@ func evalBinary(b binary, env *Environ[any]) (any, error) {
 	}
 }
 
-func evalTest(t test, env *Environ[any]) (any, error) {
+func evalTest(t test, env Resolver) (any, error) {
 	res, err := eval(t.cdt, env)
 	if err != nil {
 		return nil, err
@@ -169,7 +174,7 @@ func evalTest(t test, env *Environ[any]) (any, error) {
 	return eval(t.alt, env)
 }
 
-func evalWhile(w while, env *Environ[any]) (any, error) {
+func evalWhile(w while, env Resolver) (any, error) {
 	var (
 		res any
 		err error
@@ -196,7 +201,7 @@ func evalWhile(w while, env *Environ[any]) (any, error) {
 	return res, nil
 }
 
-func evalAssign(a assign, env *Environ[any]) (any, error) {
+func evalAssign(a assign, env Resolver) (any, error) {
 	res, err := eval(a.right, env)
 	if err != nil {
 		return nil, err
@@ -205,7 +210,7 @@ func evalAssign(a assign, env *Environ[any]) (any, error) {
 	return nil, nil
 }
 
-func evalCall(c call, env *Environ[any]) (any, error) {
+func evalCall(c call, env Resolver) (any, error) {
 	var (
 		args []any
 		res  any
@@ -218,11 +223,11 @@ func evalCall(c call, env *Environ[any]) (any, error) {
 		}
 		args = append(args, res)
 	}
-	fn, err := builtins.Lookup(c.ident)
+	call, err := env.Lookup(c.ident)
 	if err != nil {
 		return nil, err
 	}
-	return fn(args...)
+	return call.Call(env, args...)
 }
 
 func execLesser(left, right any, eq bool) (any, error) {
