@@ -422,7 +422,7 @@ func (p *parser) parseTernary(left Expression) (Expression, error) {
 		return nil, err
 	}
 	if p.curr.Type != Colon {
-		return nil, fmt.Errorf("syntax error!")
+		return nil, fmt.Errorf("syntax error! missing colon")
 	}
 	p.next()
 
@@ -433,9 +433,10 @@ func (p *parser) parseTernary(left Expression) (Expression, error) {
 }
 
 func (p *parser) parseAssign(left Expression) (Expression, error) {
-	v, ok := left.(variable)
-	if !ok {
-		return nil, fmt.Errorf("syntax error!")
+	switch left.(type) {
+	case variable, index:
+	default:
+		return nil, fmt.Errorf("can not assign to %T", left)
 	}
 	op := p.curr.Type
 	p.next()
@@ -444,7 +445,7 @@ func (p *parser) parseAssign(left Expression) (Expression, error) {
 		return nil, err
 	}
 	expr := assign{
-		ident: v.ident,
+		ident: left,
 		right: right,
 	}
 	if op != Assign {

@@ -40,6 +40,7 @@ func execute(expr Expression, env *Resolver) (types.Primitive, error) {
 		err  error
 		list = []visitFunc{
 			trackVariables,
+			trackExpressions,
 			replaceFunctionArgs,
 			inlineFunctionCall,
 			replaceValue,
@@ -227,7 +228,21 @@ func evalAssign(a assign, env *Resolver) (types.Primitive, error) {
 	if err != nil {
 		return nil, err
 	}
-	env.Define(a.ident, res)
+	switch a := a.ident.(type) {
+	case variable:
+		env.Define(a.ident, res)
+	case index:
+		x, ok := a.arr.(variable)
+		if !ok {
+			return nil, fmt.Errorf("can not assign to %T", a.arr)
+		}
+		// arr, err := env.Resolve(x.ident)
+		// if err != nil {
+		// 	return nil, err
+		// }
+	default:
+		return nil, fmt.Errorf("can not assign to %T", a)
+	}
 	return nil, nil
 }
 

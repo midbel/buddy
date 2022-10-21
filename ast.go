@@ -201,7 +201,7 @@ func (_ function) isPrimitive() bool {
 }
 
 type assign struct {
-	ident string
+	ident Expression
 	right Expression
 }
 
