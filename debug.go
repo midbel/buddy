@@ -25,6 +25,12 @@ func Debug(w io.Writer, r io.Reader, visit bool) error {
 		if expr, err = traverse(expr, resolv, visitors); err != nil {
 			return err
 		}
+		for k, e := range resolv.symbols {
+			resolv.symbols[k], err = traverse(e, resolv, visitors)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	printAST(w, expr, 0)
 	return nil

@@ -47,6 +47,12 @@ func execute(expr Expression, env *Resolver) (types.Primitive, error) {
 	if expr, err = traverse(expr, env, list); err != nil {
 		return nil, err
 	}
+	for k, e := range env.symbols {
+		env.symbols[k], err = traverse(e, env, list)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return eval(expr, env)
 }
 
