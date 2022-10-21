@@ -487,6 +487,11 @@ func (p *parser) parseInfix(left Expression) (Expression, error) {
 }
 
 func (p *parser) parseIndex(left Expression) (Expression, error) {
+	switch left.(type) {
+	case array, dict, variable:
+	default:
+		return nil, fmt.Errorf("%T can not be indexed", left)
+	}
 	p.next()
 	expr, err := p.parse(powLowest)
 	if err != nil {
