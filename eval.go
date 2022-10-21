@@ -220,38 +220,11 @@ func evalAssign(a assign, env *Resolver) (types.Primitive, error) {
 	case variable:
 		env.Define(a.ident, res)
 	case index:
-		return assignWithIndex(a, res, env)
+		return assignIndex(a, res, env)
 	default:
 		return nil, fmt.Errorf("can not assign to %T", a)
 	}
 	return res, nil
-}
-
-func assignWithIndex(idx index, value types.Primitive, env *Resolver) (types.Primitive, error) {
-	ix, err := eval(idx.expr, env)
-	if err != nil {
-		return nil, err
-	}
-	switch i := idx.arr.(type) {
-	case variable:
-		v, err := env.Resolve(i.ident)
-		if err != nil {
-			return nil, err
-		}
-		c, ok := v.(types.Container)
-		if !ok {
-			return nil, fmt.Errorf("%s is not a container!", i.ident)
-		}
-		v, err = c.Set(ix, value)
-		if err == nil {
-			err = env.Define(i.ident, v)
-		}
-		return v, err
-	case array, dict:
-	default:
-		return nil, fmt.Errorf("can not assign to %T", idx.arr)
-	}
-	return nil, nil
 }
 
 func evalCall(c call, env *Resolver) (types.Primitive, error) {
@@ -304,6 +277,47 @@ func evalIndex(idx index, env *Resolver) (types.Primitive, error) {
 		return nil, fmt.Errorf("%T is not a container!", p)
 	}
 	return c.Get(ix)
+}
+
+func assignIndex(idx index, value types.Primitive, env *Resolver) (types.Primitive, error) {
+	ix, err := eval(idx.expr, env)
+	if err != nil {
+		return nil, err
+	}
+	switch i := idx.arr.(type) {
+	case variable:
+		v, err := env.Resolve(i.ident)
+		if err != nil {
+			return nil, err
+		}
+		c, ok := v.(types.Container)
+		if !ok {
+			return nil, fmt.Errorf("%s is not a container!", i.ident)
+		}
+		v, err = c.Set(ix, value)
+		if err == nil {
+			err = env.Define(i.ident, v)
+		}
+		return v, err
+	case array:
+		arr, err := evalArray(i, env)
+		if err != nil {
+			return nil, err
+		}
+		c, ok := arr.(types.Container)
+		if !ok {
+			return nil, fmt.Errorf("value is not a container!")
+		}
+		v, err = c.Set(ix, value)
+		if err == nil {
+			err = env.Define(i.ident, v)
+		}
+		return v, err
+	case dict:
+	default:
+		return nil, fmt.Errorf("can not assign to %T", idx.arr)
+	}
+	return nil, nil
 }
 
 type binaryFunc func(types.Primitive, types.Primitive, rune) (types.Primitive, error)
