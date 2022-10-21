@@ -19,6 +19,7 @@ func Debug(w io.Writer, r io.Reader, visit bool) error {
 		}
 		visitors := []visitFunc{
 			trackVariables,
+			trackExpressions,
 			replaceFunctionArgs,
 			inlineFunctionCall,
 			replaceValue,
@@ -64,8 +65,9 @@ func printAST(w io.Writer, e Expression, level int) {
 		fmt.Fprintln(w, fmt.Sprintf("%sunary(%s)", prefix, unaryOp(e.op)))
 		printAST(w, e.right, level+1)
 	case assign:
-		fmt.Fprintln(w, fmt.Sprintf("%sassign(%s)", prefix, e.ident))
-		printAST(w, e.right, level+1)
+		fmt.Fprintln(w, prefix+"assign")
+		printAST(w, e.ident, level+1)
+		printAST(w, e.right, level+2)
 	case test:
 		fmt.Fprintln(w, prefix+"if")
 		printAST(w, e.cdt, level+1)
