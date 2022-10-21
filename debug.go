@@ -85,6 +85,8 @@ func printAST(w io.Writer, e Expression, level int) {
 		}
 	case literal:
 		fmt.Fprintln(w, fmt.Sprintf("%sliteral(%s)", prefix, e.str))
+	case variable:
+		fmt.Fprintln(w, fmt.Sprintf("%svariable(%s)", prefix, e.ident))
 	}
 }
 
