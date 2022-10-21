@@ -7,12 +7,27 @@ import (
 	"strings"
 )
 
-func Debug(w io.Writer, r io.Reader) error {
+func Debug(w io.Writer, r io.Reader, visit bool) error {
 	expr, err := Parse(r)
-	if err == nil {
-		printAST(w, expr, 0)
+	if err != nil {
+		return err
 	}
-	return err
+	if visit {
+		resolv := NewResolver()
+		if s, ok := expr.(script); ok {
+			resolv.symbols = s.symbols
+		}
+		visitors := []visitFunc{
+			inlineFunctionArgs,
+			inlineFunctionCall,
+			replaceValue,
+		}
+		if expr, err = traverse(expr, resolv, visitors); err != nil {
+			return err
+		}
+	}
+	printAST(w, expr, 0)
+	return nil
 }
 
 func printAST(w io.Writer, e Expression, level int) {

@@ -28,15 +28,11 @@ func EvalEnv(r io.Reader, env *Environ) (types.Primitive, error) {
 }
 
 func Execute(expr Expression, env *Environ) (types.Primitive, error) {
-	resolv := Resolver{
-		Environ: env,
-	}
+	resolv := ResolveEnv(env)
 	if s, ok := expr.(script); ok {
 		resolv.symbols = s.symbols
-	} else {
-		resolv.symbols = make(map[string]Expression)
 	}
-	return execute(expr, &resolv)	
+	return execute(expr, resolv)	
 }
 
 func execute(expr Expression, env *Resolver) (types.Primitive, error) {

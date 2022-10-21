@@ -15,6 +15,17 @@ type Resolver struct {
 	symbols map[string]Expression
 }
 
+func NewResolver() *Resolver {
+	return ResolveEnv(EmptyEnv())
+}
+
+func ResolveEnv(env *Environ) *Resolver {
+	return &Resolver{
+		Environ: env,
+		symbols: make(map[string]Expression),
+	}
+}
+
 func (r *Resolver) Lookup(name string) (Callable, error) {
 	b, err := builtins.Lookup(name)
 	if err == nil {
