@@ -137,30 +137,6 @@ func replaceValue(expr Expression, env *Resolver) (Expression, error) {
 	}
 }
 
-func trackExpressions(expr Expression, env *Resolver) (Expression, error) {
-	switch e := expr.(type) {
-	case script:
-		for i := range e.list {
-			_, err := trackExpressions(e.list[i], env)
-			if err != nil {
-				return nil, err
-			}
-		}
-	case assign:
-	case test:
-	case while:
-	case returned:
-	case breaked:
-	case continued:
-	case function:
-		return trackExpressions(e.body, env)
-	case call:
-	default:
-		return nil, fmt.Errorf("expression evaluated but not used")
-	}
-	return expr, nil
-}
-
 func trackVariables(expr Expression, env *Resolver) (Expression, error) {
 	k := track()
 	return expr, k.check(expr, env)

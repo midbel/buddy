@@ -19,7 +19,6 @@ func Debug(w io.Writer, r io.Reader, visit bool) error {
 		}
 		visitors := []visitFunc{
 			trackVariables,
-			trackExpressions,
 			replaceFunctionArgs,
 			inlineFunctionCall,
 			replaceValue,
@@ -124,7 +123,8 @@ func printAST(w io.Writer, e Expression, level int) {
 		}
 	case index:
 		fmt.Fprintln(w, prefix+"index")
-		printAST(w, e.expr, level+1)
+		printAST(w, e.arr, level+1)
+		printAST(w, e.expr, level+2)
 	}
 }
 

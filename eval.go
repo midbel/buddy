@@ -40,7 +40,6 @@ func execute(expr Expression, env *Resolver) (types.Primitive, error) {
 		err  error
 		list = []visitFunc{
 			trackVariables,
-			trackExpressions,
 			replaceFunctionArgs,
 			inlineFunctionCall,
 			replaceValue,
@@ -72,6 +71,12 @@ func eval(expr Expression, env *Resolver) (types.Primitive, error) {
 			err = nil
 		}
 		return res, err
+	case array:
+		return evalArray(e, env)
+	case dict:
+		return evalDict(e, env)
+	case index:
+		return evalIndex(e, env)
 	case literal:
 		return types.CreateString(e.str), nil
 	case number:
@@ -133,7 +138,11 @@ func evalUnary(u unary, env *Resolver) (types.Primitive, error) {
 	case Not:
 		return res.Not()
 	case Sub:
-		return res.Rev()
+		cal, ok := res.(types.Calculable)
+		if !ok {
+			return nil, fmt.Errorf("%w: value can not be reversed", types.ErrOperation)
+		}
+		return cal.Rev()
 	default:
 		return nil, fmt.Errorf("unsupported unary operator")
 	}
@@ -148,38 +157,17 @@ func evalBinary(b binary, env *Resolver) (types.Primitive, error) {
 	if err != nil {
 		return nil, err
 	}
-	switch b.op {
-	default:
+	var do binaryFunc
+	if isArithmetic(b.op) {
+		do = doArithmetic
+	} else if isComparison(b.op) {
+		do = doComparison
+	} else if isRelational(b.op) {
+		do = doRelational
+	} else {
 		return nil, fmt.Errorf("unsupported binary operator")
-	case Add:
-		return left.Add(right)
-	case Sub:
-		return left.Sub(right)
-	case Mul:
-		return left.Mul(right)
-	case Div:
-		return left.Div(right)
-	case Pow:
-		return left.Pow(right)
-	case Mod:
-		return left.Mod(right)
-	case And:
-		return types.And(left, right)
-	case Or:
-		return types.Or(left, right)
-	case Eq:
-		return left.Eq(right)
-	case Ne:
-		return left.Ne(right)
-	case Lt:
-		return left.Lt(right)
-	case Le:
-		return left.Le(right)
-	case Gt:
-		return left.Gt(right)
-	case Ge:
-		return left.Ge(right)
 	}
+	return do(left, right, b.op)
 }
 
 func evalTest(t test, env *Resolver) (types.Primitive, error) {
@@ -232,16 +220,36 @@ func evalAssign(a assign, env *Resolver) (types.Primitive, error) {
 	case variable:
 		env.Define(a.ident, res)
 	case index:
-		x, ok := a.arr.(variable)
-		if !ok {
-			return nil, fmt.Errorf("can not assign to %T", a.arr)
-		}
-		// arr, err := env.Resolve(x.ident)
-		// if err != nil {
-		// 	return nil, err
-		// }
+		return assignWithIndex(a, res, env)
 	default:
 		return nil, fmt.Errorf("can not assign to %T", a)
+	}
+	return res, nil
+}
+
+func assignWithIndex(idx index, value types.Primitive, env *Resolver) (types.Primitive, error) {
+	ix, err := eval(idx.expr, env)
+	if err != nil {
+		return nil, err
+	}
+	switch i := idx.arr.(type) {
+	case variable:
+		v, err := env.Resolve(i.ident)
+		if err != nil {
+			return nil, err
+		}
+		c, ok := v.(types.Container)
+		if !ok {
+			return nil, fmt.Errorf("%s is not a container!", i.ident)
+		}
+		v, err = c.Set(ix, value)
+		if err == nil {
+			err = env.Define(i.ident, v)
+		}
+		return v, err
+	case array, dict:
+	default:
+		return nil, fmt.Errorf("can not assign to %T", idx.arr)
 	}
 	return nil, nil
 }
@@ -264,4 +272,117 @@ func evalCall(c call, env *Resolver) (types.Primitive, error) {
 		return nil, err
 	}
 	return call.Call(env, args...)
+}
+
+func evalArray(arr array, env *Resolver) (types.Primitive, error) {
+	var list []types.Primitive
+	for i := range arr.list {
+		v, err := eval(arr.list[i], env)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, v)
+	}
+	return types.CreateArray(list), nil
+}
+
+func evalDict(arr dict, env *Resolver) (types.Primitive, error) {
+	return nil, nil
+}
+
+func evalIndex(idx index, env *Resolver) (types.Primitive, error) {
+	ix, err := eval(idx.expr, env)
+	if err != nil {
+		return nil, err
+	}
+	p, err := eval(idx.arr, env)
+	if err != nil {
+		return nil, err
+	}
+	c, ok := p.(types.Container)
+	if !ok {
+		return nil, fmt.Errorf("%T is not a container!", p)
+	}
+	return c.Get(ix)
+}
+
+type binaryFunc func(types.Primitive, types.Primitive, rune) (types.Primitive, error)
+
+func doArithmetic(left, right types.Primitive, op rune) (types.Primitive, error) {
+	cal, ok := left.(types.Calculable)
+	if !ok {
+		return nil, fmt.Errorf("%w: values can not be calculated", types.ErrOperation)
+	}
+	var err error
+	switch op {
+	case Add:
+		left, err = cal.Add(right)
+	case Sub:
+		left, err = cal.Sub(right)
+	case Mul:
+		left, err = cal.Mul(right)
+	case Div:
+		left, err = cal.Div(right)
+	case Pow:
+		left, err = cal.Pow(right)
+	case Mod:
+		left, err = cal.Mod(right)
+	default:
+		err = fmt.Errorf("unsupported binary operator")
+	}
+	return left, err
+}
+
+func doComparison(left, right types.Primitive, op rune) (types.Primitive, error) {
+	cmp, ok := left.(types.Comparable)
+	if !ok {
+		return nil, fmt.Errorf("%w: values can not be compared", types.ErrOperation)
+	}
+	var err error
+	switch op {
+	case Eq:
+		left, err = cmp.Eq(right)
+	case Ne:
+		left, err = cmp.Ne(right)
+	case Lt:
+		left, err = cmp.Lt(right)
+	case Le:
+		left, err = cmp.Le(right)
+	case Gt:
+		left, err = cmp.Gt(right)
+	case Ge:
+		left, err = cmp.Ge(right)
+	default:
+		err = fmt.Errorf("unsupported binary operator")
+	}
+	return left, err
+}
+
+func doRelational(left, right types.Primitive, op rune) (types.Primitive, error) {
+	if op == And {
+		return types.And(left, right)
+	}
+	return types.Or(left, right)
+}
+
+func isRelational(op rune) bool {
+	return op == And || op == Or
+}
+
+func isArithmetic(op rune) bool {
+	switch op {
+	case Add, Sub, Div, Mul, Pow, Mod:
+		return true
+	default:
+		return false
+	}
+}
+
+func isComparison(op rune) bool {
+	switch op {
+	case Eq, Ne, Lt, Le, Gt, Ge:
+		return true
+	default:
+		return false
+	}
 }
