@@ -25,7 +25,7 @@ func repl() {
 	var (
 		cmd  int
 		scan = bufio.NewScanner(os.Stdin)
-		env  = buddy.EmptyEnv[any]()
+		env  = buddy.EmptyEnv()
 	)
 	cmd++
 	io.WriteString(os.Stdout, fmt.Sprintf(in, cmd))
@@ -36,11 +36,18 @@ func repl() {
 			io.WriteString(os.Stdout, fmt.Sprintf(in, cmd))
 			continue
 		}
-		res, err := buddy.EvalWithEnv(strings.NewReader(line), env)
+		res, err := buddy.EvalEnv(strings.NewReader(line), env)
 		if err != nil {
 			if builtins.IsExit(err) {
-				code, _ := res.(float64)
-				os.Exit(int(code))
+				var code int
+				switch c := res.Raw().(type) {
+				case int64:
+					code = int(c)
+				case float64:
+					code = int(c)
+				default:
+				}
+				os.Exit(code)
 			}
 			fmt.Fprintf(os.Stderr, fmt.Sprintf(nok, cmd, err))
 			fmt.Fprintln(os.Stderr)

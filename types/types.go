@@ -44,6 +44,19 @@ type Primitive interface {
 	True() bool
 }
 
+func CreatePrimitive(value any) (Primitive, error) {
+	switch v := value.(type) {
+	case string:
+		return CreateString(v), nil
+	case int64:
+		return CreateInt(v), nil
+	case float64:
+		return CreateFloat(v), nil
+	default:
+		return nil, fmt.Errorf("%s can not be transformed to Primitive")
+	}
+}
+
 func And(left, right Primitive) (Primitive, error) {
 	b := left.True() && right.True()
 	return Bool{value: b}, nil

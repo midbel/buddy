@@ -16,29 +16,34 @@ var (
 )
 
 func Eval(r io.Reader) (types.Primitive, error) {
-	return EvalWithEnv(r, EmptyEnv())
+	return EvalEnv(r, EmptyEnv())
 }
 
-func EvalWithEnv(r io.Reader, env *Environ) (types.Primitive, error) {
-	expr, err := Parse(r)
+func EvalEnv(r io.Reader, env *Environ) (types.Primitive, error) {
+	e, err := Parse(r)
 	if err != nil {
 		return nil, err
 	}
-	s, ok := expr.(script)
-	if !ok {
-		return nil, fmt.Errorf("can not create resolver from %T", s)
-	}
-	resolv := Resolver{
-		Environ: env,
-		symbols: s.symbols,
-	}
-	return Execute(expr, &resolv)
+	return Execute(e, env)
 }
 
-func Execute(expr Expression, env *Resolver) (types.Primitive, error) {
+func Execute(expr Expression, env *Environ) (types.Primitive, error) {
+	resolv := Resolver{
+		Environ: env,
+	}
+	if s, ok := expr.(script); ok {
+		resolv.symbols = s.symbols
+	} else {
+		resolv.symbols = make(map[string]Expression)
+	}
+	return execute(expr, &resolv)	
+}
+
+func execute(expr Expression, env *Resolver) (types.Primitive, error) {
 	var (
 		err  error
 		list = []visitFunc{
+			inlineFunctionArgs,
 			inlineFunctionCall,
 			replaceValue,
 		}

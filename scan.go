@@ -42,7 +42,7 @@ func (s *Scanner) Scan() Token {
 		s.scanNumber(&tok)
 	case isOperator(s.char):
 		s.scanOperator(&tok)
-	case isChar(s.char):
+	case isLetter(s.char):
 		s.scanIdent(&tok)
 	case isQuote(s.char):
 		s.scanLiteral(&tok)
