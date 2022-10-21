@@ -100,6 +100,20 @@ func replaceValue(expr Expression, env *Resolver) (Expression, error) {
 	case parameter:
 		e.expr, err = replaceValue(e.expr, env)
 		return e, err
+	case dict:
+		for k, v := range e.list {
+			e.list[k], err = replaceValue(v, env)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return e, nil
+	case array:
+		e.list, err = replaceExprList(e.list, env)
+		return e, err
+	case index:
+		e.expr, err = replaceValue(e.expr, env)
+		return e, nil
 	default:
 		return expr, nil
 	}

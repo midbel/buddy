@@ -102,6 +102,20 @@ func printAST(w io.Writer, e Expression, level int) {
 		fmt.Fprintln(w, fmt.Sprintf("%sliteral(%s)", prefix, e.str))
 	case variable:
 		fmt.Fprintln(w, fmt.Sprintf("%svariable(%s)", prefix, e.ident))
+	case dict:
+		fmt.Fprintln(w, fmt.Sprintf("%sdict(%d)", prefix, len(e.list)))
+		for k, v := range e.list {
+			printAST(w, k, level+1)
+			printAST(w, v, level+2)
+		}
+	case array:
+		fmt.Fprintln(w, fmt.Sprintf("%sarray(%d)", prefix, len(e.list)))
+		for i := range e.list {
+			printAST(w, e.list[i], level+1)
+		}
+	case index:
+		fmt.Fprintln(w, prefix+"index")
+		printAST(w, e.expr, level+1)
 	}
 }
 

@@ -150,6 +150,31 @@ func (_ number) isPrimitive() bool {
 	return true
 }
 
+type array struct {
+	list []Expression
+}
+
+func (_ array) isPrimitive() bool {
+	return false
+}
+
+type dict struct {
+	list map[Expression]Expression
+}
+
+func (_ dict) isPrimitive() bool {
+	return false
+}
+
+type index struct {
+	arr  Expression
+	expr Expression
+}
+
+func (_ index) isPrimitive() bool {
+	return false
+}
+
 type parameter struct {
 	ident string
 	expr  Expression

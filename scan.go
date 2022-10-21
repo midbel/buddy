@@ -33,6 +33,7 @@ func (s *Scanner) Scan() Token {
 		s.read()
 	}
 	var tok Token
+	tok.Position = s.Position
 	if s.done() {
 		tok.Type = EOF
 		return tok
@@ -145,10 +146,20 @@ func (s *Scanner) scanOperator(tok *Token) {
 		tok.Type = Lparen
 	case rparen:
 		tok.Type = Rparen
+	case lsquare:
+		tok.Type = Lsquare
+		if isNL(s.peek()) {
+			s.read()
+			s.skipNL()
+		}
+	case rsquare:
+		tok.Type = Rsquare
 	case lcurly:
 		tok.Type = Lcurly
-		s.read()
-		s.skipNL()
+		if isNL(s.peek()) {
+			s.read()
+			s.skipNL()
+		}
 	case rcurly:
 		tok.Type = Rcurly
 	case plus:
@@ -189,7 +200,7 @@ func (s *Scanner) scanOperator(tok *Token) {
 	case question:
 		tok.Type = Ternary
 	case colon:
-		tok.Type = Alt
+		tok.Type = Colon
 	default:
 		tok.Type = Invalid
 	}
@@ -265,6 +276,8 @@ const (
 	rparen          = ')'
 	lcurly          = '{'
 	rcurly          = '}'
+	lsquare         = '['
+	rsquare         = ']'
 	comma           = ','
 	hash            = '#'
 	dollar          = '$'
@@ -301,6 +314,8 @@ func isOperator(r rune) bool {
 	case pipe:
 	case lcurly:
 	case rcurly:
+	case lsquare:
+	case rsquare:
 	default:
 		return false
 	}

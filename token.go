@@ -48,10 +48,9 @@ const (
 	Rparen
 	Lcurly
 	Rcurly
-	Expr
-	Sum
-	Range
-	RangeSum
+	Lsquare
+	Rsquare
+	Colon
 	Add
 	AddAssign
 	Sub
@@ -71,7 +70,6 @@ const (
 	Ne
 	Assign
 	Ternary
-	Alt
 	Not
 	And
 	Or
@@ -115,6 +113,8 @@ func (t Token) String() string {
 		prefix = "identifier"
 	case Comma:
 		return "<comma>"
+	case Colon:
+		return "<colon>"
 	case EOL:
 		return "<eol>"
 	case EOF:
@@ -127,6 +127,10 @@ func (t Token) String() string {
 		return "<lcurly>"
 	case Rcurly:
 		return "<rcurly>"
+	case Lsquare:
+		return "<lsquare>"
+	case Rsquare:
+		return "<rsquare>"
 	case Add:
 		return "<add>"
 	case AddAssign:
@@ -169,8 +173,6 @@ func (t Token) String() string {
 		return "<assign>"
 	case Ternary:
 		return "<ternary>"
-	case Alt:
-		return "<alter>"
 	case Not:
 		return "<not>"
 	}

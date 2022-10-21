@@ -32,7 +32,7 @@ func Execute(expr Expression, env *Environ) (types.Primitive, error) {
 	if s, ok := expr.(script); ok {
 		resolv.symbols = s.symbols
 	}
-	return execute(expr, resolv)	
+	return execute(expr, resolv)
 }
 
 func execute(expr Expression, env *Resolver) (types.Primitive, error) {

@@ -17,6 +17,7 @@ const (
 	powCompare  // <, <=, >, >=
 	powAdd      // +, -
 	powMul      // /, *, **, %
+	powIndex
 	powPrefix
 	powCall // ()
 )
@@ -54,6 +55,7 @@ var powers = powerMap{
 	Le:        powCompare,
 	Gt:        powCompare,
 	Ge:        powCompare,
+	Lsquare:   powIndex,
 }
 
 type program struct {
@@ -85,6 +87,8 @@ func Parse(r io.Reader) (Expression, error) {
 		Literal: p.parsePrefix,
 		Ident:   p.parsePrefix,
 		Lparen:  p.parseGroup,
+		Lsquare: p.parseArray,
+		Lcurly:  p.parseDict,
 		Keyword: p.parseKeyword,
 	}
 	p.infix = map[rune]func(Expression) (Expression, error){
@@ -101,6 +105,7 @@ func Parse(r io.Reader) (Expression, error) {
 		MulAssign: p.parseAssign,
 		ModAssign: p.parseAssign,
 		Lparen:    p.parseCall,
+		Lsquare:   p.parseIndex,
 		Ternary:   p.parseTernary,
 		Eq:        p.parseInfix,
 		Ne:        p.parseInfix,
@@ -416,7 +421,7 @@ func (p *parser) parseTernary(left Expression) (Expression, error) {
 	if expr.csq, err = p.parse(powLowest); err != nil {
 		return nil, err
 	}
-	if p.curr.Type != Alt {
+	if p.curr.Type != Colon {
 		return nil, fmt.Errorf("syntax error!")
 	}
 	p.next()
@@ -479,6 +484,82 @@ func (p *parser) parseInfix(left Expression) (Expression, error) {
 	}
 	expr.right = right
 	return expr, nil
+}
+
+func (p *parser) parseIndex(left Expression) (Expression, error) {
+	p.next()
+	expr, err := p.parse(powLowest)
+	if err != nil {
+		return nil, err
+	}
+	if p.curr.Type != Rsquare {
+		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+	}
+	p.next()
+	ix := index{
+		arr:  left,
+		expr: expr,
+	}
+	return ix, nil
+}
+
+func (p *parser) parseArray() (Expression, error) {
+	p.next()
+	var arr array
+	for p.curr.Type != Rsquare && !p.done() {
+		e, err := p.parse(powLowest)
+		if err != nil {
+			return nil, err
+		}
+		arr.list = append(arr.list, e)
+		switch p.curr.Type {
+		case Comma:
+			p.next()
+			p.skip(EOL)
+		case Rsquare:
+		default:
+			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		}
+	}
+	if p.curr.Type != Rsquare {
+		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+	}
+	p.next()
+	return arr, nil
+}
+
+func (p *parser) parseDict() (Expression, error) {
+	p.next()
+	var d dict
+	d.list = make(map[Expression]Expression)
+	for p.curr.Type != Rcurly && !p.done() {
+		k, err := p.parse(powLowest)
+		if err != nil {
+			return nil, err
+		}
+		if p.curr.Type != Colon {
+			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		}
+		p.next()
+		v, err := p.parse(powLowest)
+		if err != nil {
+			return nil, err
+		}
+		d.list[k] = v
+		switch p.curr.Type {
+		case Comma:
+			p.next()
+			p.skip(EOL)
+		case Rcurly:
+		default:
+			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		}
+	}
+	if p.curr.Type != Rcurly {
+		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+	}
+	p.next()
+	return d, nil
 }
 
 func (p *parser) parsePrefix() (Expression, error) {
