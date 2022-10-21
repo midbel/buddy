@@ -18,6 +18,15 @@ type Sizeable interface {
 	Len() int
 }
 
+type Comparable interface {
+	Eq(Primitive) (Primitive, error)
+	Ne(Primitive) (Primitive, error)
+	Lt(Primitive) (Primitive, error)
+	Le(Primitive) (Primitive, error)
+	Gt(Primitive) (Primitive, error)
+	Ge(Primitive) (Primitive, error)
+}
+
 type Primitive interface {
 	fmt.Stringer
 
@@ -33,12 +42,7 @@ type Primitive interface {
 	Mul(Primitive) (Primitive, error)
 	Pow(Primitive) (Primitive, error)
 
-	Eq(Primitive) (Primitive, error)
-	Ne(Primitive) (Primitive, error)
-	Lt(Primitive) (Primitive, error)
-	Le(Primitive) (Primitive, error)
-	Gt(Primitive) (Primitive, error)
-	Ge(Primitive) (Primitive, error)
+	Comparable
 
 	True() bool
 }
