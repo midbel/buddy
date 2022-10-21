@@ -39,7 +39,7 @@ func execute(expr Expression, env *Resolver) (types.Primitive, error) {
 	var (
 		err  error
 		list = []visitFunc{
-			checkVariables,
+			trackVariables,
 			replaceFunctionArgs,
 			inlineFunctionCall,
 			replaceValue,

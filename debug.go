@@ -18,7 +18,7 @@ func Debug(w io.Writer, r io.Reader, visit bool) error {
 			resolv.symbols = s.symbols
 		}
 		visitors := []visitFunc{
-			checkVariables,
+			trackVariables,
 			replaceFunctionArgs,
 			inlineFunctionCall,
 			replaceValue,

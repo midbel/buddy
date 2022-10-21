@@ -137,19 +137,20 @@ func replaceValue(expr Expression, env *Resolver) (Expression, error) {
 	}
 }
 
-type counter struct {
-	identifiers map[string]int
+func trackVariables(expr Expression, env *Resolver) (Expression, error) {
+	k := track()
+	return expr, k.check(expr, env)
 }
 
-func createCounter() *counter {
-	return &counter{
-		identifiers: make(map[string]int),
-	}
+type vartracker map[string]int
+
+func track() vartracker {
+	return make(vartracker)
 }
 
-func (c *counter) unused() error {
+func (k vartracker) unused() error {
 	var list errorsList
-	for ident, count := range c.identifiers {
+	for ident, count := range k {
 		if count <= 1 {
 			list = append(list, unusedVar(ident))
 		}
@@ -160,102 +161,98 @@ func (c *counter) unused() error {
 	return list
 }
 
-func (c *counter) set(ident string) {
-	c.identifiers[ident] += 1
+func (k vartracker) set(ident string) {
+	k[ident] += 1
 }
 
-func (c counter) exists(ident string) bool {
-	return c.identifiers[ident] > 0
+func (k vartracker) exists(ident string) bool {
+	return k[ident] > 0
 }
 
-func checkVariables(expr Expression, env *Resolver) (Expression, error) {
-	return expr, checkVars(expr, env, createCounter())
-}
-
-func checkVars(expr Expression, env *Resolver, count *counter) error {
+func (k vartracker) check(expr Expression, env *Resolver) error {
 	var err error
 	switch e := expr.(type) {
 	case script:
 		for i := range e.list {
-			if err = checkVars(e.list[i], env, count); err != nil {
+			if err = k.check(e.list[i], env); err != nil {
 				break
 			}
 		}
 		if err == nil {
-			err = count.unused()
+			err = k.unused()
 		}
 	case parameter:
-		if err = checkVars(e.expr, env, count); err != nil {
+		if err = k.check(e.expr, env); err != nil {
 			break
 		}
-		count.set(e.ident)
+		k.set(e.ident)
 	case function:
-		tmp := createCounter()
+		tmp := track()
 		for i := range e.params {
-			if err = checkVars(e.params[i], env, tmp); err != nil {
+			if err = tmp.check(e.params[i], env); err != nil {
 				break
 			}
 		}
 		if err == nil {
-			err = checkVars(e.body, env, tmp)
+			err = tmp.check(e.body, env)
 		}
 		if err == nil {
 			err = tmp.unused()
 		}
 	case returned:
-		err = checkVars(e.right, env, count)
+		err = k.check(e.right, env)
 	case binary:
-		if err = checkVars(e.left, env, count); err != nil {
+		if err = k.check(e.left, env); err != nil {
 			break
 		}
-		err = checkVars(e.right, env, count)
+		err = k.check(e.right, env)
 	case unary:
-		err = checkVars(e.right, env, count)
+		err = k.check(e.right, env)
 	case while:
-		if err = checkVars(e.cdt, env, count); err != nil {
+		if err = k.check(e.cdt, env); err != nil {
 			break
 		}
-		err = checkVars(e.body, env, count)
+		err = k.check(e.body, env)
 	case test:
-		if err = checkVars(e.cdt, env, count); err != nil {
+		if err = k.check(e.cdt, env); err != nil {
 			break
 		}
-		if err = checkVars(e.csq, env, count); err != nil {
+		if err = k.check(e.csq, env); err != nil {
 			break
 		}
-		err = checkVars(e.alt, env, count)
+		err = k.check(e.alt, env)
 	case call:
 		for i := range e.args {
-			if err = checkVars(e.args[i], env, count); err != nil {
+			if err = k.check(e.args[i], env); err != nil {
 				break
 			}
 		}
 	case assign:
-		count.set(e.ident)
-		err = checkVars(e.right, env, count)
+		k.set(e.ident)
+		err = k.check(e.right, env)
 	case variable:
-		if !count.exists(e.ident) {
+		if !k.exists(e.ident) {
 			err = undefinedVar(e.ident)
 		} else {
-			count.set(e.ident)
+			k.set(e.ident)
 		}
 	case array:
 		for i := range e.list {
-			if err = checkVars(e.list[i], env, count); err != nil {
+			if err = k.check(e.list[i], env); err != nil {
 				break
 			}
 		}
 	case dict:
 		for _, v := range e.list {
-			if err = checkVars(v, env, count); err != nil {
+			if err = k.check(v, env); err != nil {
 				break
 			}
 		}
 	case index:
-		if err = checkVars(e.arr, env, count); err != nil {
+		if err = k.check(e.arr, env); err != nil {
 			break
 		}
-		err = checkVars(e.expr, env, count)
+		err = k.check(e.expr, env)
 	default:
 	}
 	return err
