@@ -15,6 +15,11 @@ type Sizeable interface {
 	Len() int
 }
 
+type Container interface {
+	Set(Primitive, Primitive) (Primitive, error)
+	Get(Primitive) (Primitive, error)
+}
+
 type Comparable interface {
 	Eq(Primitive) (Primitive, error)
 	Ne(Primitive) (Primitive, error)
@@ -24,24 +29,22 @@ type Comparable interface {
 	Ge(Primitive) (Primitive, error)
 }
 
-type Primitive interface {
-	fmt.Stringer
-
-	Raw() any
-
+type Calculable interface {
 	Rev() (Primitive, error)
-	Not() (Primitive, error)
-
 	Add(Primitive) (Primitive, error)
 	Sub(Primitive) (Primitive, error)
 	Div(Primitive) (Primitive, error)
 	Mod(Primitive) (Primitive, error)
 	Mul(Primitive) (Primitive, error)
 	Pow(Primitive) (Primitive, error)
+}
 
-	Comparable
+type Primitive interface {
+	fmt.Stringer
+	Raw() any
 
 	True() bool
+	Not() (Primitive, error)
 }
 
 func CreatePrimitive(value any) (Primitive, error) {
