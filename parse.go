@@ -613,6 +613,9 @@ func (p *parser) parseCall(left Expression) (Expression, error) {
 		ident: v.ident,
 	}
 	for p.curr.Type != Rparen && !p.done() {
+		if p.peek.Type == Assign {
+			break
+		}
 		e, err := p.parse(powLowest)
 		if err != nil {
 			return nil, err
@@ -620,6 +623,36 @@ func (p *parser) parseCall(left Expression) (Expression, error) {
 		expr.args = append(expr.args, e)
 		switch p.curr.Type {
 		case Comma:
+			if p.peek.Type == Rparen {
+				return nil, fmt.Errorf("unexpected comma before closing paren")
+			}
+			p.next()
+		case Rparen:
+		default:
+			return nil, fmt.Errorf("syntax error! missing comma")
+		}
+	}
+	for p.curr.Type != Rparen && !p.done() {
+		if p.curr.Type != Ident {
+			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		}
+		a := createParameter(p.curr.Literal)
+		p.next()
+		if p.curr.Type != Assign {
+			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		}
+		p.next()
+		val, err := p.parse(powLowest)
+		if err != nil {
+			return nil, err
+		}
+		a.expr = val
+		expr.args = append(expr.args, a)
+		switch p.curr.Type {
+		case Comma:
+			if p.peek.Type == Rparen {
+				return nil, fmt.Errorf("unexpected comma before closing paren")
+			}
 			p.next()
 		case Rparen:
 		default:
