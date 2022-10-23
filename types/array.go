@@ -65,7 +65,7 @@ func (a Array) getIndex(ix Primitive) (int, error) {
 	case Float:
 		x = int(p.value)
 	default:
-		return x, fmt.Errorf("%T can not be used as index")
+		return x, fmt.Errorf("%T can not be used as index", ix)
 	}
 	if x < 0 {
 		x = len(a.values) + x

@@ -1,11 +1,13 @@
 package types
 
 type Dict struct {
-	values map[any]Primitive
+	values map[Primitive]Primitive
 }
 
-func CreateDict() (Primitive, error) {
-	return nil, nil
+func CreateDict() Primitive {
+	return Dict{
+		values: make(map[Primitive]Primitive),
+	}
 }
 
 func (d Dict) String() string {
@@ -29,9 +31,14 @@ func (d Dict) True() bool {
 }
 
 func (d Dict) Set(ix, value Primitive) (Primitive, error) {
-	return nil, nil
+	d.values[ix] = value
+	return d, nil
 }
 
 func (d Dict) Get(ix Primitive) (Primitive, error) {
-	return nil, nil
+	p, ok := d.values[ix]
+	if !ok {
+
+	}
+	return p, nil
 }

@@ -489,7 +489,7 @@ func (p *parser) parseInfix(left Expression) (Expression, error) {
 
 func (p *parser) parseIndex(left Expression) (Expression, error) {
 	switch left.(type) {
-	case array, dict, variable:
+	case array, dict, index, variable:
 	default:
 		return nil, fmt.Errorf("%T can not be indexed", left)
 	}

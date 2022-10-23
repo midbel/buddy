@@ -260,7 +260,19 @@ func evalArray(arr array, env *Resolver) (types.Primitive, error) {
 }
 
 func evalDict(arr dict, env *Resolver) (types.Primitive, error) {
-	return nil, nil
+	d := types.CreateDict()
+	for k, v := range arr.list {
+		kp, err := eval(k, env)
+		if err != nil {
+			return nil, err
+		}
+		vp, err := eval(v, env)
+		if err != nil {
+			return nil, err
+		}
+		d, _ = d.(types.Container).Set(kp, vp)
+	}
+	return d, nil
 }
 
 func evalIndex(idx index, env *Resolver) (types.Primitive, error) {
@@ -308,11 +320,7 @@ func assignIndex(idx index, value types.Primitive, env *Resolver) (types.Primiti
 		if !ok {
 			return nil, fmt.Errorf("value is not a container!")
 		}
-		v, err = c.Set(ix, value)
-		if err == nil {
-			err = env.Define(i.ident, v)
-		}
-		return v, err
+		return c.Set(ix, value)
 	case dict:
 	default:
 		return nil, fmt.Errorf("can not assign to %T", idx.arr)
