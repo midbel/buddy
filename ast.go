@@ -85,6 +85,9 @@ func (c callExpr) Call(res *Resolver, args ...types.Primitive) (types.Primitive,
 		if i < len(args) && args[i] != nil {
 			a = args[i]
 		} else {
+			if p.expr == nil {
+				return nil, fmt.Errorf("%s: parameter not set", p.ident)
+			}
 			v, err := eval(p.expr, res)
 			if err != nil {
 				return nil, err
