@@ -7,7 +7,7 @@ import (
 	"github.com/midbel/slices"
 )
 
-func Len(args ...types.Primitive) (types.Primitive, error) {
+func runLen(args ...types.Primitive) (types.Primitive, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("len: no enough argument given")
 	}

@@ -10,32 +10,120 @@ import (
 
 type BuiltinFunc func(...types.Primitive) (types.Primitive, error)
 
-var Builtins = map[string]BuiltinFunc{
-	"len":    Len,
-	"upper":  Upper,
-	"lower":  Lower,
-	"printf": Printf,
-	"print":  Print,
-	"lshift": Lshift,
-	"rshift": Rshift,
-	"incr":   Incr,
-	"decr":   Decr,
-	"exit":   Exit,
-	"int":    Int,
-	"float":  Float,
-	"string": String,
-	"bool":   Bool,
+type Parameter struct {
+	Name  string
+	Value types.Primitive
 }
 
-func Lookup(name string) (BuiltinFunc, error) {
+func createPositional(name string) Parameter {
+	return Parameter{
+		Name: name,
+	}
+}
+
+func createNamed(name string, value types.Primitive) Parameter {
+	return Parameter{
+		Name:  name,
+		Value: value,
+	}
+}
+
+type Builtin struct {
+	Name     string
+	Variadic bool
+	Params   []Parameter
+	Call     BuiltinFunc
+}
+
+func (b Builtin) Run(args ...types.Primitive) (types.Primitive, error) {
+	res, err := b.Call(args...)
+	if err != nil {
+		err = fmt.Errorf("%s: %w", b.Name, err)
+	}
+	return res, err
+}
+
+var Builtins = map[string]Builtin{
+	"int": {
+		Name: "int",
+		Params: []Parameter{
+			createPositional("value"),
+		},
+		Call: runInt,
+	},
+	"float": {
+		Name: "runFloat",
+		Params: []Parameter{
+			createPositional("value"),
+		},
+		Call: runFloat,
+	},
+	"string": {
+		Name: "string",
+		Params: []Parameter{
+			createPositional("value"),
+		},
+		Call: runString,
+	},
+	"bool": {
+		Name: "string",
+		Params: []Parameter{
+			createPositional("value"),
+		},
+		Call: runBool,
+	},
+	"len": {
+		Name: "len",
+		Params: []Parameter{
+			createPositional("value"),
+		},
+		Call: runLen,
+	},
+	"exit": {
+		Name: "exit",
+		Params: []Parameter{
+			createPositional("code"),
+		},
+		Call: runExit,
+	},
+	"lower": {
+		Name: "lower",
+		Params: []Parameter{
+			createPositional("str"),
+		},
+		Call: runLower,
+	},
+	"upper": {
+		Name: "upper",
+		Params: []Parameter{
+			createPositional("str"),
+		},
+		Call: runUpper,
+	},
+	"print": {
+		Name:     "print",
+		Variadic: true,
+		Call:     runPrint,
+	},
+	"printf": {
+		Name:     "printf",
+		Variadic: true,
+		Params: []Parameter{
+			createPositional("format"),
+		},
+		Call: runPrintf,
+	},
+}
+
+func Lookup(name string) (Builtin, error) {
 	b, ok := Builtins[name]
 	if !ok {
-		return nil, fmt.Errorf("%s: builtin not defined", name)
+		return b, fmt.Errorf("%s: builtin not defined", name)
 	}
 	return b, nil
 }
 
-func Int(args ...types.Primitive) (types.Primitive, error) {
+func runInt(args ...types.Primitive) (types.Primitive, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("invalid number of arguments")
 	}
@@ -65,7 +153,7 @@ func Int(args ...types.Primitive) (types.Primitive, error) {
 	return types.CreateInt(val), nil
 }
 
-func Float(args ...types.Primitive) (types.Primitive, error) {
+func runFloat(args ...types.Primitive) (types.Primitive, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("invalid number of arguments")
 	}
@@ -95,7 +183,7 @@ func Float(args ...types.Primitive) (types.Primitive, error) {
 	return types.CreateFloat(val), nil
 }
 
-func String(args ...types.Primitive) (types.Primitive, error) {
+func runString(args ...types.Primitive) (types.Primitive, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("invalid number of arguments")
 	}
@@ -103,7 +191,7 @@ func String(args ...types.Primitive) (types.Primitive, error) {
 	return types.CreateString(str), nil
 }
 
-func Bool(args ...types.Primitive) (types.Primitive, error) {
+func runBool(args ...types.Primitive) (types.Primitive, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("invalid number of arguments")
 	}

@@ -8,7 +8,7 @@ import (
 	"github.com/midbel/slices"
 )
 
-func Lower(args ...types.Primitive) (types.Primitive, error) {
+func runLower(args ...types.Primitive) (types.Primitive, error) {
 	if len(args) < 1 {
 		return nil, fmt.Errorf("printf: no enough argument given")
 	}
@@ -20,7 +20,7 @@ func Lower(args ...types.Primitive) (types.Primitive, error) {
 	return types.CreateString(str), nil
 }
 
-func Upper(args ...types.Primitive) (types.Primitive, error) {
+func runUpper(args ...types.Primitive) (types.Primitive, error) {
 	if len(args) < 1 {
 		return nil, fmt.Errorf("printf: no enough argument given")
 	}
@@ -32,7 +32,7 @@ func Upper(args ...types.Primitive) (types.Primitive, error) {
 	return types.CreateString(str), nil
 }
 
-func Printf(args ...types.Primitive) (types.Primitive, error) {
+func runPrintf(args ...types.Primitive) (types.Primitive, error) {
 	if len(args) < 1 {
 		return nil, fmt.Errorf("printf: no enough argument given")
 	}
@@ -48,7 +48,7 @@ func Printf(args ...types.Primitive) (types.Primitive, error) {
 	return types.CreateString(str), nil
 }
 
-func Print(args ...types.Primitive) (types.Primitive, error) {
+func runPrint(args ...types.Primitive) (types.Primitive, error) {
 	if len(args) < 1 {
 		return nil, fmt.Errorf("printf: no enough argument given")
 	}

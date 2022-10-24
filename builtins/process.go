@@ -14,7 +14,7 @@ func IsExit(err error) bool {
 	return errors.Is(err, ErrExit)
 }
 
-func Exit(args ...types.Primitive) (types.Primitive, error) {
+func runExit(args ...types.Primitive) (types.Primitive, error) {
 	if len(args) == 0 {
 		return types.CreateInt(0), ErrExit
 	}
