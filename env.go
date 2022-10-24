@@ -29,7 +29,7 @@ func ResolveEnv(env *Environ) *Resolver {
 func (r *Resolver) Lookup(name string) (Callable, error) {
 	b, err := builtins.Lookup(name)
 	if err == nil {
-		return makeCallFromFunc(b), err
+		return makeCallFromBuiltin(b), err
 	}
 	e, ok := r.symbols[name]
 	if !ok {

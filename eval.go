@@ -228,21 +228,40 @@ func evalAssign(a assign, env *Resolver) (types.Primitive, error) {
 }
 
 func evalCall(c call, env *Resolver) (types.Primitive, error) {
-	var (
-		args []types.Primitive
-		res  types.Primitive
-		err  error
-	)
-	for _, a := range c.args {
-		res, err = eval(a, env)
-		if err != nil {
-			return nil, err
-		}
-		args = append(args, res)
-	}
 	call, err := env.Lookup(c.ident)
 	if err != nil {
 		return nil, err
+	}
+	var (
+		ptr  int
+		args = make([]types.Primitive, call.Arity())
+	)
+	for ; ptr < len(c.args); ptr++ {
+		e := c.args[ptr]
+		if _, ok := e.(parameter); ok {
+			break
+		}
+		args[ptr], err = eval(e, env)
+		if err != nil {
+			return nil, err
+		}
+	}
+	for ; ptr < len(c.args); ptr++ {
+		e, ok := c.args[ptr].(parameter)
+		if !ok {
+			return nil, fmt.Errorf("positional parameter should be given before named parameter")
+		}
+		i, err := call.index(e.ident)
+		if err != nil {
+			return nil, err
+		}
+		if args[i] != nil {
+			return nil, fmt.Errorf("%s: parameter already set", e.ident)
+		}
+		args[i], err = eval(e.expr, env)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return call.Call(env, args...)
 }
