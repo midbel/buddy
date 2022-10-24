@@ -223,7 +223,11 @@ func (k vartracker) check(expr Expression, env *Resolver) error {
 		err = k.check(e.alt, env)
 	case call:
 		for i := range e.args {
-			if err = k.check(e.args[i], env); err != nil {
+			arg := e.args[i]
+			if p, ok := arg.(parameter); ok {
+				arg = p.expr
+			}
+			if err = k.check(arg, env); err != nil {
 				break
 			}
 		}
