@@ -173,7 +173,7 @@ func (_ symbol) isPrimitive() bool {
 }
 
 type module struct {
-	ident   string
+	ident   []string
 	alias   string
 	symbols []symbol
 }

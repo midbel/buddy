@@ -244,13 +244,21 @@ func (p *parser) parseForeach() (Expression, error) {
 
 func (p *parser) parseFrom() (Expression, error) {
 	p.next()
-	if p.curr.Type != Ident {
-		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+	var mod module
+	for p.curr.Type == Ident {
+		mod.ident = append(mod.ident, p.curr.Literal)
+		p.next()
+		switch p.curr.Type {
+		case Dot:
+			p.next()
+		case Keyword, EOL, EOF:
+		default:
+			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		}
 	}
-	m := module{
-		ident: p.curr.Literal,
+	if len(mod.ident) == 0 {
+		return nil, fmt.Errorf("syntax error! no identifier given for import")
 	}
-	p.next()
 	if p.curr.Type != Keyword && p.curr.Literal != kwImport {
 		return nil, fmt.Errorf("unexpected token: %s", p.curr)
 	}
@@ -271,7 +279,7 @@ func (p *parser) parseFrom() (Expression, error) {
 			s.alias = p.curr.Literal
 			p.next()
 		}
-		m.symbols = append(m.symbols, s)
+		mod.symbols = append(mod.symbols, s)
 		switch p.curr.Type {
 		case Comma:
 			p.next()
@@ -280,27 +288,35 @@ func (p *parser) parseFrom() (Expression, error) {
 			return nil, fmt.Errorf("unexpected token: %s", p.curr)
 		}
 	}
-	return m, nil
+	return mod, nil
 }
 
 func (p *parser) parseImport() (Expression, error) {
 	p.next()
-	if p.curr.Type != Ident {
-		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+	var mod module
+	for p.curr.Type == Ident {
+		mod.ident = append(mod.ident, p.curr.Literal)
+		p.next()
+		switch p.curr.Type {
+		case Dot:
+			p.next()
+		case Keyword, EOL, EOF:
+		default:
+			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		}
 	}
-	m := module{
-		ident: p.curr.Literal,
+	if len(mod.ident) == 0 {
+		return nil, fmt.Errorf("syntax error! no identifier given for import")
 	}
-	p.next()
 	if p.curr.Type == Keyword && p.curr.Literal == kwAs {
 		p.next()
 		if p.curr.Type != Ident {
 			return nil, fmt.Errorf("unexpected token: %s", p.curr)
 		}
-		m.alias = p.curr.Literal
+		mod.alias = p.curr.Literal
 		p.next()
 	}
-	return m, nil
+	return mod, nil
 }
 
 func (p *parser) parseParameters() ([]Expression, error) {

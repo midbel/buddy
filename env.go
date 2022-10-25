@@ -7,6 +7,7 @@ import (
 
 	"github.com/midbel/buddy/builtins"
 	"github.com/midbel/buddy/types"
+	"github.com/midbel/slices"
 )
 
 var modPaths = []string{".", "./modules/"}
@@ -32,7 +33,7 @@ func ResolveEnv(env *Environ) *Resolver {
 	}
 }
 
-func (r *Resolver) Load(name string) error {
+func (r *Resolver) Load(name []string) error {
 	return r.loadModule(name)
 }
 
@@ -44,20 +45,35 @@ func (r *Resolver) Find(name string) (*Resolver, error) {
 	return mod, nil
 }
 
-func (r *Resolver) loadModule(name string) error {
-	if _, ok := r.modules[name]; ok {
+func (r *Resolver) loadModule(name []string) error {
+	if _, ok := r.modules[slices.Lst(name)]; ok {
 		return nil
 	}
-	f, err := os.Open(filepath.Join("tmp", name+".bud"))
-	if err != nil {
-		return err
-	}
-	defer f.Close()
+	tryLoad := func(file string) (Expression, error) {
+		f, err := os.Open(file)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
 
-	expr, err := Parse(f)
-	if err != nil {
-		return err
+		return Parse(f)
 	}
+
+	var (
+		file = filepath.Join(name...) + ".bud"
+		expr Expression
+		err  error
+	)
+	for _, dir := range modPaths {
+		expr, err = tryLoad(filepath.Join(dir, file))
+		if err == nil {
+			break
+		}
+	}
+	if err != nil || expr == nil {
+		return fmt.Errorf("fail to load module from %s", file)
+	}
+
 	sub := ResolveEnv(EmptyEnv())
 	sub.level = r.level
 	if s, ok := expr.(script); ok {
@@ -65,7 +81,7 @@ func (r *Resolver) loadModule(name string) error {
 	}
 	_, err = execute(expr, sub)
 	if err == nil {
-		r.modules[name] = sub
+		r.modules[slices.Lst(name)] = sub
 	}
 	return err
 }

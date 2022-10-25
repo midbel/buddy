@@ -163,10 +163,7 @@ func trackCyclic(expr Expression, env *Resolver) (Expression, error) {
 }
 
 func trackImport(expr Expression, env *Resolver) (Expression, error) {
-	var (
-		track func(Expression, bool) error
-		seen  = make(map[string]struct{})
-	)
+	var track func(Expression, bool) error
 	track = func(expr Expression, global bool) error {
 		switch e := expr.(type) {
 		case script:
@@ -192,10 +189,6 @@ func trackImport(expr Expression, env *Resolver) (Expression, error) {
 			if !global {
 				return fmt.Errorf("import expression only allows at global level")
 			}
-			if _, ok := seen[e.ident]; ok && len(e.symbols) == 0 {
-				return fmt.Errorf("module %s already imported", e.ident)
-			}
-			seen[e.ident] = struct{}{}
 		default:
 		}
 		return nil
