@@ -16,10 +16,10 @@ var (
 )
 
 func Eval(r io.Reader) (types.Primitive, error) {
-	return EvalEnv(r, EmptyEnv())
+	return EvalEnv(r, types.EmptyEnv())
 }
 
-func EvalEnv(r io.Reader, env *Environ) (types.Primitive, error) {
+func EvalEnv(r io.Reader, env *types.Environ) (types.Primitive, error) {
 	e, err := Parse(r)
 	if err != nil {
 		return nil, err
@@ -27,7 +27,7 @@ func EvalEnv(r io.Reader, env *Environ) (types.Primitive, error) {
 	return Execute(e, env)
 }
 
-func Execute(expr Expression, env *Environ) (types.Primitive, error) {
+func Execute(expr Expression, env *types.Environ) (types.Primitive, error) {
 	resolv := ResolveEnv(env)
 	if s, ok := expr.(script); ok {
 		resolv.symbols = s.symbols
@@ -203,7 +203,7 @@ func evalForeach(f foreach, env *Resolver) (types.Primitive, error) {
 	defer func() {
 		env.Environ = old
 	}()
-	env.Environ = EnclosedEnv(old)
+	env.Environ = types.EnclosedEnv(old)
 	err = iter.Iter(func(p types.Primitive) error {
 		env.Define(f.ident, p)
 		res, err = eval(f.body, env)

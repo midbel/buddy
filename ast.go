@@ -85,7 +85,7 @@ func (c callExpr) Call(res *Resolver, args ...types.Primitive) (types.Primitive,
 	if len(args) > len(c.fun.params) {
 		return nil, fmt.Errorf("%s: invalid number of arguments given", c.fun.ident)
 	}
-	env := EmptyEnv()
+	env := types.EmptyEnv()
 	for i := range c.fun.params {
 		var (
 			p, _ = c.fun.params[i].(parameter)
