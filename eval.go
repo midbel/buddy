@@ -98,11 +98,16 @@ func eval(expr Expression, env *Resolver) (types.Primitive, error) {
 			return nil, errReturn
 		}
 		res, err = eval(e.right, env)
+		if err != nil {
+			return nil, err
+		}
 		return res, errReturn
 	case breaked:
 		return nil, errBreak
 	case continued:
 		return nil, errContinue
+	default:
+		return nil, fmt.Errorf("unsupported node type %T", expr)
 	}
 	return res, err
 }
@@ -112,8 +117,8 @@ func evalScript(s script, env *Resolver) (types.Primitive, error) {
 		res types.Primitive
 		err error
 	)
-	for _, e := range s.list {
-		res, err = eval(e, env)
+	for i := range s.list {
+		res, err = eval(s.list[i], env)
 		if err != nil && !errors.Is(err, errReturn) {
 			if builtins.IsExit(err) {
 				return res, err
@@ -307,7 +312,14 @@ func evalPath(pat path, env *Resolver) (types.Primitive, error) {
 }
 
 func evalModule(mod module, env *Resolver) (types.Primitive, error) {
-	return nil, env.Load(mod.ident, mod.alias)
+	list := make(map[string]string)
+	for _, s := range mod.symbols {
+		if s.alias == "" {
+			s.alias = s.ident
+		}
+		list[s.ident] = s.alias
+	}
+	return nil, env.Load(mod.ident, mod.alias, list)
 }
 
 func evalArray(arr array, env *Resolver) (types.Primitive, error) {
