@@ -256,6 +256,14 @@ func (p *parser) parseImport() (Expression, error) {
 		ident: p.curr.Literal,
 	}
 	p.next()
+	if p.curr.Type == Keyword && p.curr.Literal == kwAs {
+		p.next()
+		if p.curr.Type != Ident {
+			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		}
+		m.alias = p.curr.Literal
+		p.next()
+	}
 	return m, nil
 }
 

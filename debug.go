@@ -93,7 +93,11 @@ func printAST(w io.Writer, e Expression, level int) {
 			printAST(w, e.expr, level+1)
 		}
 	case module:
-		fmt.Fprintln(w, fmt.Sprintf("%simport(%s)", prefix, e.ident))
+		fmt.Fprintf(w, "%simport(%s", prefix, e.ident)
+		if e.alias != "" {
+			fmt.Fprintf(w, ":%s", e.alias)
+		}
+		fmt.Fprintln(w, ")")
 		for i := range e.symbols {
 			printAST(w, e.symbols[i], level+1)
 		}

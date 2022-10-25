@@ -165,6 +165,7 @@ func (_ symbol) isPrimitive() bool {
 
 type module struct {
 	ident   string
+	alias   string
 	symbols []symbol
 }
 
