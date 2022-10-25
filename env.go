@@ -33,8 +33,14 @@ func ResolveEnv(env *Environ) *Resolver {
 	}
 }
 
-func (r *Resolver) Load(name []string) error {
-	return r.loadModule(name)
+func (r *Resolver) Load(name []string, alias string) error {
+	if len(name) == 0 {
+		return fmt.Errorf("empty module name given")
+	}
+	if alias == "" {
+		alias = slices.Lst(name)
+	}
+	return r.loadModule(name, alias)
 }
 
 func (r *Resolver) Find(name string) (*Resolver, error) {
@@ -45,8 +51,8 @@ func (r *Resolver) Find(name string) (*Resolver, error) {
 	return mod, nil
 }
 
-func (r *Resolver) loadModule(name []string) error {
-	if _, ok := r.modules[slices.Lst(name)]; ok {
+func (r *Resolver) loadModule(name []string, alias string) error {
+	if _, ok := r.modules[alias]; ok {
 		return nil
 	}
 	tryLoad := func(file string) (Expression, error) {
@@ -81,7 +87,7 @@ func (r *Resolver) loadModule(name []string) error {
 	}
 	_, err = execute(expr, sub)
 	if err == nil {
-		r.modules[slices.Lst(name)] = sub
+		r.modules[alias] = sub
 	}
 	return err
 }

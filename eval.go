@@ -307,7 +307,7 @@ func evalPath(pat path, env *Resolver) (types.Primitive, error) {
 }
 
 func evalModule(mod module, env *Resolver) (types.Primitive, error) {
-	return nil, env.Load(mod.ident)
+	return nil, env.Load(mod.ident, mod.alias)
 }
 
 func evalArray(arr array, env *Resolver) (types.Primitive, error) {
