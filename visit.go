@@ -181,7 +181,7 @@ func trackImport(expr Expression, env *Resolver) (Expression, error) {
 			if !global {
 				return fmt.Errorf("import expression only allows at global level")
 			}
-			if _, ok := seen[e.ident]; ok {
+			if _, ok := seen[e.ident]; ok && len(e.symbols) == 0 {
 				return fmt.Errorf("module %s already imported", e.ident)
 			}
 			seen[e.ident] = struct{}{}

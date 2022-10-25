@@ -94,6 +94,15 @@ func printAST(w io.Writer, e Expression, level int) {
 		}
 	case module:
 		fmt.Fprintln(w, fmt.Sprintf("%simport(%s)", prefix, e.ident))
+		for i := range e.symbols {
+			printAST(w, e.symbols[i], level+1)
+		}
+	case symbol:
+		fmt.Fprintf(w, "%ssymbol(%s", prefix, e.ident)
+		if e.alias != "" {
+			fmt.Fprintf(w, ":%s", e.alias)
+		}
+		fmt.Fprintln(w, ")")
 	case path:
 		fmt.Fprintln(w, fmt.Sprintf("%spath(%s)", prefix, e.ident))
 		printAST(w, e.right, level+1)

@@ -199,14 +199,57 @@ func (p *parser) parseKeyword() (Expression, error) {
 		return p.parseReturn()
 	case kwImport:
 		return p.parseImport()
+	case kwFrom:
+		return p.parseFrom()
 	default:
 		return nil, fmt.Errorf("%s: keyword not implemented", p.curr.Literal)
 	}
 }
 
+func (p *parser) parseFrom() (Expression, error) {
+	p.next()
+	if p.curr.Type != Ident {
+		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+	}
+	m := module{
+		ident: p.curr.Literal,
+	}
+	p.next()
+	if p.curr.Type != Keyword && p.curr.Literal != kwImport {
+		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+	}
+	p.next()
+	for p.curr.Type != EOL && !p.done() {
+		if p.curr.Type != Ident {
+			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		}
+		s := symbol{
+			ident: p.curr.Literal,
+		}
+		p.next()
+		if p.curr.Type == Keyword && p.curr.Literal == kwAs {
+			p.next()
+			if p.curr.Type != Ident {
+				return nil, fmt.Errorf("unexpected token: %s", p.curr)
+			}
+			s.alias = p.curr.Literal
+			p.next()
+		}
+		m.symbols = append(m.symbols, s)
+		switch p.curr.Type {
+		case Comma:
+			p.next()
+		case EOL, EOF:
+		default:
+			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		}
+	}
+	return m, nil
+}
+
 func (p *parser) parseImport() (Expression, error) {
 	p.next()
-	if p.curr.Type != Literal {
+	if p.curr.Type != Ident {
 		return nil, fmt.Errorf("unexpected token: %s", p.curr)
 	}
 	m := module{

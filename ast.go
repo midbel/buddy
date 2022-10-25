@@ -155,8 +155,12 @@ func (_ path) isPrimitive() bool {
 }
 
 type symbol struct {
-	name  string
+	ident string
 	alias string
+}
+
+func (_ symbol) isPrimitive() bool {
+	return false
 }
 
 type module struct {
