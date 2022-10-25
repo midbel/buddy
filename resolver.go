@@ -14,11 +14,6 @@ var modPaths = []string{".", "./modules/"}
 
 const LimitRecurse = 1 << 10
 
-type resolvedExpr struct {
-	Expression
-	resolv *Resolver
-}
-
 type Resolver struct {
 	level int
 	*types.Environ
