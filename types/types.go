@@ -15,6 +15,10 @@ type Sizeable interface {
 	Len() int
 }
 
+type Iterable interface {
+	Iter(func(Primitive) error) error
+}
+
 type Container interface {
 	Set(Primitive, Primitive) (Primitive, error)
 	Get(Primitive) (Primitive, error)

@@ -18,6 +18,16 @@ func (d Dict) Raw() any {
 	return nil
 }
 
+func (d Dict) Iter(do func(Primitive) error) error {
+	var err error
+	for i := range d.values {
+		if err = do(d.values[i]); err != nil {
+			break
+		}
+	}
+	return err
+}
+
 func (d Dict) Len() int {
 	return len(d.values)
 }

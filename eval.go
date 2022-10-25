@@ -91,6 +91,8 @@ func eval(expr Expression, env *Resolver) (types.Primitive, error) {
 		res, err = evalTest(e, env)
 	case while:
 		res, err = evalWhile(e, env)
+	case foreach:
+		res, err = evalForeach(e, env)
 	case returned:
 		if e.right == nil {
 			return nil, errReturn
@@ -178,6 +180,31 @@ func evalTest(t test, env *Resolver) (types.Primitive, error) {
 		return nil, nil
 	}
 	return eval(t.alt, env)
+}
+
+func evalForeach(f foreach, env *Resolver) (types.Primitive, error) {
+	it, err := eval(f.iter, env)
+	if err != nil {
+		return nil, err
+	}
+	iter, ok := it.(types.Iterable)
+	if !ok {
+		return nil, fmt.Errorf("can not iterate on %T", it)
+	}
+	var (
+		old = env.Environ
+		res types.Primitive
+	)
+	defer func() {
+		env.Environ = old
+	}()
+	env.Environ = EnclosedEnv(old)
+	err = iter.Iter(func(p types.Primitive) error {
+		env.Define(f.ident, p)
+		res, err = eval(f.body, env)
+		return err
+	})
+	return res, err
 }
 
 func evalWhile(w while, env *Resolver) (types.Primitive, error) {

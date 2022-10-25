@@ -28,6 +28,16 @@ func (a Array) Raw() any {
 	return list
 }
 
+func (a Array) Iter(do func(Primitive) error) error {
+	var err error
+	for i := range a.values {
+		if err = do(a.values[i]); err != nil {
+			break
+		}
+	}
+	return err
+}
+
 func (a Array) Len() int {
 	return len(a.values)
 }
