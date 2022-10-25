@@ -115,6 +115,13 @@ func replaceValue(expr Expression, env *Resolver) (Expression, error) {
 		}
 		e.body, err = replaceValue(e.body, env)
 		return e, err
+	case foreach:
+		e.iter, err = replaceValue(e.iter, env)
+		if err != nil {
+			return nil, err
+		}
+		e.body, err = replaceValue(e.body, env)
+		return e, err
 	case returned:
 		e.right, err = replaceValue(e.right, env)
 		return e, nil
@@ -233,10 +240,23 @@ func trackLoop(expr Expression, env *Resolver) (Expression, error) {
 		case function:
 			return track(e.body, false)
 		case while:
+			err := track(e.cdt, false)
+			if err != nil {
+				return err
+			}
+			return track(e.body, true)
+		case foreach:
+			err := track(e.iter, false)
+			if err != nil {
+				return err
+			}
 			return track(e.body, true)
 		case test:
-			err := track(e.csq, inloop)
+			err := track(e.cdt, false)
 			if err != nil {
+				return err
+			}
+			if err = track(e.csq, inloop); err != nil {
 				return err
 			}
 			if e.alt != nil {
@@ -348,6 +368,12 @@ func (k vartracker) check(expr Expression, env *Resolver) error {
 				break
 			}
 		}
+	case foreach:
+		k.set(e.ident)
+		if err = k.check(e.iter, env); err != nil {
+			break
+		}
+		err = k.check(e.body, env)
 	case assign:
 		if v, ok := e.ident.(variable); ok {
 			k.set(v.ident)

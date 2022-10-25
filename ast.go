@@ -333,6 +333,16 @@ func (_ script) isPrimitive() bool {
 	return false
 }
 
+type foreach struct {
+	ident string
+	iter  Expression
+	body  Expression
+}
+
+func (_ foreach) isPrimitive() bool {
+	return false
+}
+
 type while struct {
 	cdt  Expression
 	body Expression

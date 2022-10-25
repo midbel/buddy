@@ -16,7 +16,9 @@ const (
 	kwContinue = "continue"
 	kwImport   = "import"
 	kwFrom     = "from"
+	kwFor      = "for"
 	kwAs       = "as"
+	kwIn       = "in"
 )
 
 func isKeyword(str string) bool {
@@ -31,6 +33,8 @@ func isKeyword(str string) bool {
 	case kwImport:
 	case kwFrom:
 	case kwAs:
+	case kwFor:
+	case kwIn:
 	default:
 		return false
 	}

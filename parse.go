@@ -201,9 +201,45 @@ func (p *parser) parseKeyword() (Expression, error) {
 		return p.parseImport()
 	case kwFrom:
 		return p.parseFrom()
+	case kwFor:
+		return p.parseForeach()
 	default:
 		return nil, fmt.Errorf("%s: keyword not implemented", p.curr.Literal)
 	}
+}
+
+func (p *parser) parseForeach() (Expression, error) {
+	p.next()
+	if p.curr.Type != Lparen {
+		return nil, fmt.Errorf("unexpected token %s", p.curr)
+	}
+	p.next()
+
+	var (
+		expr foreach
+		err  error
+	)
+	if p.curr.Type != Ident {
+		return nil, fmt.Errorf("unexpected token", p.curr)
+	}
+	expr.ident = p.curr.Literal
+	p.next()
+	if p.curr.Type != Keyword && p.curr.Literal != kwIn {
+		return nil, fmt.Errorf("unexpected token", p.curr)
+	}
+	p.next()
+	if expr.iter, err = p.parse(powLowest); err != nil {
+		return nil, err
+	}
+	if p.curr.Type != Rparen {
+		return nil, fmt.Errorf("unexpected token %s", p.curr)
+	}
+	p.next()
+	expr.body, err = p.parseBlock()
+	if p.curr.Type != EOL && p.curr.Type != EOF {
+		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+	}
+	return expr, nil
 }
 
 func (p *parser) parseFrom() (Expression, error) {
