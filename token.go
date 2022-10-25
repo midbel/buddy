@@ -41,16 +41,16 @@ const (
 	Boolean
 	Variable
 	Number
-	Command
 	Comment
 	Comma
+	Dot
+	Colon
 	Lparen
 	Rparen
 	Lcurly
 	Rcurly
 	Lsquare
 	Rsquare
-	Colon
 	Add
 	AddAssign
 	Sub
@@ -115,6 +115,8 @@ func (t Token) String() string {
 		return "<comma>"
 	case Colon:
 		return "<colon>"
+	case Dot:
+		return "<dot>"
 	case EOL:
 		return "<eol>"
 	case EOF:

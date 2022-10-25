@@ -36,20 +36,12 @@ func Execute(expr Expression, env *Environ) (types.Primitive, error) {
 }
 
 func execute(expr Expression, env *Resolver) (types.Primitive, error) {
-	var (
-		err  error
-		list = []visitFunc{
-			trackVariables,
-			replaceFunctionArgs,
-			inlineFunctionCall,
-			replaceValue,
-		}
-	)
-	if expr, err = traverse(expr, env, list); err != nil {
+	var err error
+	if expr, err = traverse(expr, env, visitors); err != nil {
 		return nil, err
 	}
 	for k, e := range env.symbols {
-		env.symbols[k], err = traverse(e, env, list)
+		env.symbols[k], err = traverse(e, env, visitors)
 		if err != nil {
 			return nil, err
 		}
@@ -77,6 +69,10 @@ func eval(expr Expression, env *Resolver) (types.Primitive, error) {
 		return evalDict(e, env)
 	case index:
 		return evalIndex(e, env)
+	case module:
+		return evalModule(e, env)
+	case path:
+		return evalPath(e, env)
 	case literal:
 		return types.CreateString(e.str), nil
 	case number:
@@ -264,6 +260,14 @@ func evalCall(c call, env *Resolver) (types.Primitive, error) {
 		}
 	}
 	return call.Call(env, args...)
+}
+
+func evalPath(pat path, env *Resolver) (types.Primitive, error) {
+	return nil, nil
+}
+
+func evalModule(mod module, env *Resolver) (types.Primitive, error) {
+	return nil, nil
 }
 
 func evalArray(arr array, env *Resolver) (types.Primitive, error) {

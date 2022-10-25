@@ -102,6 +102,8 @@ func (s *Scanner) scanNumber(tok *Token) {
 
 func (s *Scanner) scanOperator(tok *Token) {
 	switch s.char {
+	case dot:
+		tok.Type = Dot
 	case ampersand:
 		if s.peek() != ampersand {
 			tok.Type = Invalid
@@ -301,6 +303,7 @@ func isOperator(r rune) bool {
 	case percent:
 	case slash:
 	case semicolon:
+	case dot:
 	case lparen:
 	case rparen:
 	case equal:

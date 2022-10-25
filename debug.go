@@ -17,12 +17,6 @@ func Debug(w io.Writer, r io.Reader, visit bool) error {
 		if s, ok := expr.(script); ok {
 			resolv.symbols = s.symbols
 		}
-		visitors := []visitFunc{
-			trackVariables,
-			replaceFunctionArgs,
-			inlineFunctionCall,
-			replaceValue,
-		}
 		if expr, err = traverse(expr, resolv, visitors); err != nil {
 			return err
 		}
@@ -98,6 +92,11 @@ func printAST(w io.Writer, e Expression, level int) {
 		if e.expr != nil {
 			printAST(w, e.expr, level+1)
 		}
+	case module:
+		fmt.Fprintln(w, fmt.Sprintf("%simport(%s)", prefix, e.ident))
+	case path:
+		fmt.Fprintln(w, fmt.Sprintf("%spath(%s)", prefix, e.ident))
+		printAST(w, e.right, level+1)
 	case boolean:
 		fmt.Fprintln(w, fmt.Sprintf("%sboolean(%t)", prefix, e.value))
 	case number:

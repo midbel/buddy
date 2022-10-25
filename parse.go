@@ -20,6 +20,7 @@ const (
 	powIndex
 	powPrefix
 	powCall // ()
+	powDot
 )
 
 type powerMap map[rune]int
@@ -56,6 +57,7 @@ var powers = powerMap{
 	Gt:        powCompare,
 	Ge:        powCompare,
 	Lsquare:   powIndex,
+	Dot:       powDot,
 }
 
 type program struct {
@@ -70,14 +72,11 @@ type parser struct {
 
 	prefix map[rune]func() (Expression, error)
 	infix  map[rune]func(Expression) (Expression, error)
-
-	symbols map[string]Expression
 }
 
 func Parse(r io.Reader) (Expression, error) {
 	p := parser{
-		scan:    Scan(r),
-		symbols: make(map[string]Expression),
+		scan: Scan(r),
 	}
 	p.prefix = map[rune]func() (Expression, error){
 		Sub:     p.parsePrefix,
@@ -99,6 +98,7 @@ func Parse(r io.Reader) (Expression, error) {
 		Mod:       p.parseInfix,
 		Pow:       p.parseInfix,
 		Assign:    p.parseAssign,
+		Dot:       p.parsePath,
 		AddAssign: p.parseAssign,
 		SubAssign: p.parseAssign,
 		DivAssign: p.parseAssign,
@@ -123,8 +123,9 @@ func Parse(r io.Reader) (Expression, error) {
 
 func (p *parser) Parse() (Expression, error) {
 	var s script
+	s.symbols = make(map[string]Expression)
 	for !p.done() {
-		if ok, err := p.parseSpecial(); ok {
+		if ok, err := p.parseSpecial(&s); ok {
 			if err != nil {
 				return nil, err
 			}
@@ -139,7 +140,6 @@ func (p *parser) Parse() (Expression, error) {
 			return nil, err
 		}
 	}
-	s.symbols = p.symbols
 	return s, nil
 }
 
@@ -165,7 +165,7 @@ func (p *parser) parse(pow int) (Expression, error) {
 	return left, nil
 }
 
-func (p *parser) parseSpecial() (bool, error) {
+func (p *parser) parseSpecial(s *script) (bool, error) {
 	if p.curr.Type != Keyword {
 		return false, nil
 	}
@@ -178,13 +178,7 @@ func (p *parser) parseSpecial() (bool, error) {
 			fn, err = p.parseFunction()
 		)
 		if err == nil {
-			p.symbols[ident] = fn
-			err = p.eol()
-		}
-		return true, err
-	case kwImport:
-		_, err := p.parseImport()
-		if err == nil {
+			s.symbols[ident] = fn
 			err = p.eol()
 		}
 		return true, err
@@ -203,13 +197,23 @@ func (p *parser) parseKeyword() (Expression, error) {
 		return p.parseContinue()
 	case kwReturn:
 		return p.parseReturn()
+	case kwImport:
+		return p.parseImport()
 	default:
 		return nil, fmt.Errorf("%s: keyword not implemented", p.curr.Literal)
 	}
 }
 
 func (p *parser) parseImport() (Expression, error) {
-	return nil, nil
+	p.next()
+	if p.curr.Type != Literal {
+		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+	}
+	m := module{
+		ident: p.curr.Literal,
+	}
+	p.next()
+	return m, nil
 }
 
 func (p *parser) parseParameters() ([]Expression, error) {
@@ -430,6 +434,23 @@ func (p *parser) parseTernary(left Expression) (Expression, error) {
 		return nil, err
 	}
 	return expr, nil
+}
+
+func (p *parser) parsePath(left Expression) (Expression, error) {
+	v, ok := left.(variable)
+	if !ok {
+		return nil, fmt.Errorf("can not used %T as path identifier")
+	}
+	p.next()
+	a := path{
+		ident: v.ident,
+	}
+	right, err := p.parse(powLowest)
+	if err != nil {
+		return nil, err
+	}
+	a.right = right
+	return a, nil
 }
 
 func (p *parser) parseAssign(left Expression) (Expression, error) {

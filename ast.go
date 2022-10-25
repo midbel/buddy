@@ -145,6 +145,29 @@ func createPrimitive(res interface{}) (Expression, error) {
 	}
 }
 
+type path struct {
+	ident string
+	right Expression
+}
+
+func (_ path) isPrimitive() bool {
+	return false
+}
+
+type symbol struct {
+	name  string
+	alias string
+}
+
+type module struct {
+	ident   string
+	symbols []symbol
+}
+
+func (_ module) isPrimitive() bool {
+	return false
+}
+
 type variable struct {
 	ident string
 }
