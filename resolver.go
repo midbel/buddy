@@ -15,8 +15,10 @@ var modPaths = []string{".", "./modules/"}
 const LimitRecurse = 1 << 10
 
 type Resolver struct {
-	level int
 	*types.Environ
+
+	paths   []string
+	level   int
 	symbols map[string]Expression
 	modules map[string]*Resolver
 }
@@ -27,6 +29,7 @@ func NewResolver() *Resolver {
 
 func ResolveEnv(env *types.Environ) *Resolver {
 	return &Resolver{
+		paths:   append([]string, modPaths...),
 		Environ: env,
 		symbols: make(map[string]Expression),
 		modules: make(map[string]*Resolver),
@@ -70,8 +73,8 @@ func (r *Resolver) loadModule(name []string, alias string, symbols map[string]st
 		expr Expression
 		err  error
 	)
-	for _, dir := range modPaths {
-		expr, err = tryLoad(filepath.Join(dir, file))
+	for i := range r.paths {
+		expr, err = tryLoad(filepath.Join(r.paths[i], file))
 		if err == nil {
 			break
 		}
