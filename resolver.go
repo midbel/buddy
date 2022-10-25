@@ -105,16 +105,12 @@ func (r *Resolver) loadModule(name []string, alias string, symbols map[string]st
 	return nil
 }
 
-func (r *Resolver) loadBuiltin(name string) error {
-	return nil
-}
-
 func (r *Resolver) Lookup(name string) (Callable, error) {
 	if e, ok := r.symbols[name]; ok {
 		if a, ok := e.(alias); ok {
-			sub, ok := r.modules[a.module]
-			if !ok {
-				return nil, fmt.Errorf("%s: %s module not defined", a.ident, a.module)
+			sub, err := r.Find(a.module)
+			if err != nil {
+				return nil, err
 			}
 			return sub.Lookup(a.ident)
 		}
