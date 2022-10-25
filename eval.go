@@ -295,7 +295,7 @@ func evalCall(c call, env *Resolver) (types.Primitive, error) {
 			return nil, err
 		}
 	}
-	return call.Call(env, args...)
+	return call.Call(args...)
 }
 
 func evalPath(pat path, env *Resolver) (types.Primitive, error) {

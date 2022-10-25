@@ -14,6 +14,11 @@ var modPaths = []string{".", "./modules/"}
 
 const LimitRecurse = 1 << 10
 
+type resolvedExpr struct {
+	Expression
+	resolv *Resolver
+}
+
 type Resolver struct {
 	level int
 	*types.Environ
@@ -89,16 +94,13 @@ func (r *Resolver) loadModule(name []string, alias string, symbols map[string]st
 	if err != nil {
 		return err
 	}
-	if len(symbols) == 0 {
-		r.modules[alias] = sub
-		return nil
-	}
-	for ident, alias := range symbols {
-		expr, ok := sub.symbols[ident]
+	r.modules[alias] = sub
+	for id, a := range symbols {
+		_, ok := sub.symbols[id]
 		if !ok {
-			return fmt.Errorf("%s: function not defined", ident)
+			return fmt.Errorf("%s: function not defined", id)
 		}
-		r.symbols[alias] = expr
+		r.symbols[a] = createAlias(alias, id)
 	}
 	return nil
 }
@@ -109,13 +111,20 @@ func (r *Resolver) loadBuiltin(name string) error {
 
 func (r *Resolver) Lookup(name string) (Callable, error) {
 	if e, ok := r.symbols[name]; ok {
-		return makeCallFromExpr(e)
+		if a, ok := e.(alias); ok {
+			sub, ok := r.modules[a.module]
+			if !ok {
+				return nil, fmt.Errorf("%s: %s module not defined", a.ident, a.module)
+			}
+			return sub.Lookup(a.ident)
+		}
+		return makeCallFromExpr(r, e)
 	}
 	b, err := builtins.Lookup(name)
 	if err != nil {
 		return nil, err
 	}
-	return makeCallFromBuiltin(b), nil
+	return makeCallFromBuiltin(r, b), nil
 }
 
 func (r *Resolver) enter() error {
