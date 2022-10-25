@@ -5,6 +5,18 @@ import (
 	"strings"
 )
 
+func init() {
+	visitors = []visitFunc{
+		trackVariables,
+		trackImport,
+		trackCyclic,
+		trackLoop,
+		replaceFunctionArgs,
+		inlineFunctionCall,
+		replaceValue,
+	}
+}
+
 type errorsList []error
 
 func (e errorsList) Error() string {
@@ -20,15 +32,7 @@ func (e errorsList) Error() string {
 
 type visitFunc func(Expression, *Resolver) (Expression, error)
 
-var visitors = []visitFunc{
-	trackVariables,
-	trackImport,
-	trackCyclic,
-	trackLoop,
-	replaceFunctionArgs,
-	inlineFunctionCall,
-	replaceValue,
-}
+var visitors []visitFunc
 
 func traverse(expr Expression, env *Resolver, visit []visitFunc) (Expression, error) {
 	var err error
@@ -378,6 +382,8 @@ func (k vartracker) check(expr Expression, env *Resolver) error {
 		if v, ok := e.ident.(variable); ok {
 			k.set(v.ident)
 		}
+		err = k.check(e.right, env)
+	case path:
 		err = k.check(e.right, env)
 	case variable:
 		if !k.exists(e.ident) {

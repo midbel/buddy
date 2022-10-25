@@ -70,7 +70,7 @@ func (s *Scanner) scanLiteral(tok *Token) {
 func (s *Scanner) scanIdent(tok *Token) {
 	defer s.unread()
 	pos := s.curr
-	for isLetter(s.char) {
+	for isAlpha(s.char) {
 		s.read()
 	}
 	tok.Type = Ident

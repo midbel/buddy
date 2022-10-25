@@ -2,10 +2,14 @@ package buddy
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/midbel/buddy/builtins"
 	"github.com/midbel/buddy/types"
 )
+
+var modPaths = []string{".", "./modules/"}
 
 const LimitRecurse = 1 << 10
 
@@ -13,6 +17,7 @@ type Resolver struct {
 	level int
 	*Environ
 	symbols map[string]Expression
+	modules map[string]*Resolver
 }
 
 func NewResolver() *Resolver {
@@ -23,7 +28,50 @@ func ResolveEnv(env *Environ) *Resolver {
 	return &Resolver{
 		Environ: env,
 		symbols: make(map[string]Expression),
+		modules: make(map[string]*Resolver),
 	}
+}
+
+func (r *Resolver) Load(name string) error {
+	return r.loadModule(name)
+}
+
+func (r *Resolver) Find(name string) (*Resolver, error) {
+	mod, ok := r.modules[name]
+	if !ok {
+		return nil, fmt.Errorf("%s: module not defined", name)
+	}
+	return mod, nil
+}
+
+func (r *Resolver) loadModule(name string) error {
+	if _, ok := r.modules[name]; ok {
+		return nil
+	}
+	f, err := os.Open(filepath.Join("tmp", name+".bud"))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	expr, err := Parse(f)
+	if err != nil {
+		return err
+	}
+	sub := ResolveEnv(EmptyEnv())
+	sub.level = r.level
+	if s, ok := expr.(script); ok {
+		sub.symbols = s.symbols
+	}
+	_, err = execute(expr, sub)
+	if err == nil {
+		r.modules[name] = sub
+	}
+	return err
+}
+
+func (r *Resolver) loadBuiltin(name string) error {
+	return nil
 }
 
 func (r *Resolver) Lookup(name string) (Callable, error) {

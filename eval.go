@@ -255,9 +255,13 @@ func evalCall(c call, env *Resolver) (types.Primitive, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if len(c.args) > call.Arity() && !call.Variadic() {
+		return nil, fmt.Errorf("too many arguments given")
+	}
 	var (
 		ptr  int
-		args = make([]types.Primitive, call.Arity())
+		args = make([]types.Primitive, len(c.args))
 	)
 	for ; ptr < len(c.args); ptr++ {
 		e := c.args[ptr]
@@ -290,11 +294,20 @@ func evalCall(c call, env *Resolver) (types.Primitive, error) {
 }
 
 func evalPath(pat path, env *Resolver) (types.Primitive, error) {
-	return nil, nil
+	sub, err := env.Find(pat.ident)
+	if err != nil {
+		return nil, err
+	}
+	old := sub.Environ
+	defer func() {
+		sub.Environ = old
+	}()
+	sub.Environ = env.Environ
+	return eval(pat.right, sub)
 }
 
 func evalModule(mod module, env *Resolver) (types.Primitive, error) {
-	return nil, nil
+	return nil, env.Load(mod.ident)
 }
 
 func evalArray(arr array, env *Resolver) (types.Primitive, error) {

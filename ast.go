@@ -11,6 +11,7 @@ import (
 type Callable interface {
 	Call(*Resolver, ...types.Primitive) (types.Primitive, error)
 	Arity() int
+	Variadic() bool
 	at(int) (string, error)
 	index(string) (int, error)
 }
@@ -27,6 +28,10 @@ func makeCallFromBuiltin(b builtins.Builtin) Callable {
 
 func (c callBuiltin) Arity() int {
 	return len(c.builtin.Params)
+}
+
+func (c callBuiltin) Variadic() bool {
+	return c.builtin.Variadic
 }
 
 func (c callBuiltin) Call(res *Resolver, args ...types.Primitive) (types.Primitive, error) {
@@ -70,6 +75,10 @@ func makeCallFromExpr(e Expression) (Callable, error) {
 
 func (c callExpr) Arity() int {
 	return len(c.fun.params)
+}
+
+func (_ callExpr) Variadic() bool {
+	return false
 }
 
 func (c callExpr) Call(res *Resolver, args ...types.Primitive) (types.Primitive, error) {
