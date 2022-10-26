@@ -60,11 +60,6 @@ var powers = powerMap{
 	Dot:       powDot,
 }
 
-type program struct {
-	Expression
-	symbols map[string]Expression
-}
-
 type parser struct {
 	scan *Scanner
 	curr Token
@@ -146,7 +141,7 @@ func (p *parser) Parse() (Expression, error) {
 func (p *parser) parse(pow int) (Expression, error) {
 	fn, ok := p.prefix[p.curr.Type]
 	if !ok {
-		return nil, fmt.Errorf("prefix: %s can not be parsed", p.curr)
+		return nil, p.parseError("unary operator not recognized")
 	}
 	left, err := fn()
 	if err != nil {
@@ -155,7 +150,7 @@ func (p *parser) parse(pow int) (Expression, error) {
 	for (p.curr.Type != EOL || p.curr.Type != EOF) && pow < powers.Get(p.curr.Type) {
 		fn, ok := p.infix[p.curr.Type]
 		if !ok {
-			return nil, fmt.Errorf("infix: %s can not be parsed", p.curr)
+			return nil, p.parseError("binary operator not recognized")
 		}
 		left, err = fn(left)
 		if err != nil {
@@ -204,40 +199,39 @@ func (p *parser) parseKeyword() (Expression, error) {
 	case kwFor:
 		return p.parseForeach()
 	default:
-		return nil, fmt.Errorf("%s: keyword not implemented", p.curr.Literal)
+		return nil, p.parseError("keyword not recognized")
 	}
 }
 
 func (p *parser) parseForeach() (Expression, error) {
 	p.next()
 	if p.curr.Type != Lparen {
-		return nil, fmt.Errorf("unexpected token %s", p.curr)
+		return nil, p.parseError("expected '('")
 	}
 	p.next()
-
 	var (
 		expr foreach
 		err  error
 	)
 	if p.curr.Type != Ident {
-		return nil, fmt.Errorf("unexpected token", p.curr)
+		return nil, p.parseError("expected identifier")
 	}
 	expr.ident = p.curr.Literal
 	p.next()
 	if p.curr.Type != Keyword && p.curr.Literal != kwIn {
-		return nil, fmt.Errorf("unexpected token", p.curr)
+		return nil, p.parseError("expected 'in' keyword")
 	}
 	p.next()
 	if expr.iter, err = p.parse(powLowest); err != nil {
 		return nil, err
 	}
 	if p.curr.Type != Rparen {
-		return nil, fmt.Errorf("unexpected token %s", p.curr)
+		return nil, p.parseError("expected ')'")
 	}
 	p.next()
 	expr.body, err = p.parseBlock()
 	if p.curr.Type != EOL && p.curr.Type != EOF {
-		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		return nil, p.parseError("expected newline or ';'")
 	}
 	return expr, nil
 }
@@ -253,19 +247,19 @@ func (p *parser) parseFrom() (Expression, error) {
 			p.next()
 		case Keyword, EOL, EOF:
 		default:
-			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+			return nil, p.parseError("expected keyword, newline, '.' or ';'")
 		}
 	}
 	if len(mod.ident) == 0 {
-		return nil, fmt.Errorf("syntax error! no identifier given for import")
+		return nil, p.parseError("no identifier given for import")
 	}
-	if p.curr.Type != Keyword && p.curr.Literal != kwImport {
-		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+	if p.curr.Type != Keyword || p.curr.Literal != kwImport {
+		return nil, p.parseError("expected 'import' keyword")
 	}
 	p.next()
 	for p.curr.Type != EOL && !p.done() {
 		if p.curr.Type != Ident {
-			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+			return nil, p.parseError("expected identifier")
 		}
 		s := symbol{
 			ident: p.curr.Literal,
@@ -274,7 +268,7 @@ func (p *parser) parseFrom() (Expression, error) {
 		if p.curr.Type == Keyword && p.curr.Literal == kwAs {
 			p.next()
 			if p.curr.Type != Ident {
-				return nil, fmt.Errorf("unexpected token: %s", p.curr)
+				return nil, p.parseError("expected identifier")
 			}
 			s.alias = p.curr.Literal
 			p.next()
@@ -285,7 +279,7 @@ func (p *parser) parseFrom() (Expression, error) {
 			p.next()
 		case EOL, EOF:
 		default:
-			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+			return nil, p.parseError("expected newline, ',' or ;'")
 		}
 	}
 	return mod, nil
@@ -302,16 +296,16 @@ func (p *parser) parseImport() (Expression, error) {
 			p.next()
 		case Keyword, EOL, EOF:
 		default:
-			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+			return nil, p.parseError("expected keyword, newline, '.' or ';'")
 		}
 	}
 	if len(mod.ident) == 0 {
-		return nil, fmt.Errorf("syntax error! no identifier given for import")
+		return nil, p.parseError("no identifier given for import")
 	}
 	if p.curr.Type == Keyword && p.curr.Literal == kwAs {
 		p.next()
 		if p.curr.Type != Ident {
-			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+			return nil, p.parseError("expected identifier")
 		}
 		mod.alias = p.curr.Literal
 		p.next()
@@ -321,7 +315,7 @@ func (p *parser) parseImport() (Expression, error) {
 
 func (p *parser) parseParameters() ([]Expression, error) {
 	if p.curr.Type != Lparen {
-		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		return nil, p.parseError("expected ')'")
 	}
 	p.next()
 
@@ -331,27 +325,30 @@ func (p *parser) parseParameters() ([]Expression, error) {
 			break
 		}
 		if p.curr.Type != Ident {
-			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+			return nil, p.parseError("expected identifier")
 		}
 		a := createParameter(p.curr.Literal)
 		list = append(list, a)
 		p.next()
 		switch p.curr.Type {
 		case Comma:
+			if p.peek.Type == Rparen {
+				return nil, p.parseError("unexpected ',' before ')")
+			}
 			p.next()
 		case Rparen:
 		default:
-			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+			return nil, p.parseError("expected ')' or ','")
 		}
 	}
 	for p.curr.Type != Rparen && !p.done() {
 		if p.curr.Type != Ident {
-			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+			return nil, p.parseError("expected identifier")
 		}
 		a := createParameter(p.curr.Literal)
 		p.next()
 		if p.curr.Type != Assign {
-			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+			return nil, p.parseError("expected '='")
 		}
 		p.next()
 		expr, err := p.parse(powLowest)
@@ -362,17 +359,20 @@ func (p *parser) parseParameters() ([]Expression, error) {
 		list = append(list, a)
 		switch p.curr.Type {
 		case Comma:
+			if p.peek.Type == Rparen {
+				return nil, p.parseError("unexpected ',' before ')")
+			}
 			p.next()
 		case Rparen:
 		default:
-			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+			return nil, p.parseError("expected ')' or ','")
 		}
 	}
 	if len(list) > MaxArity {
-		return nil, fmt.Errorf("too many parameters given to function")
+		return nil, p.parseError("too many parameters given to function")
 	}
 	if p.curr.Type != Rparen {
-		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		return nil, p.parseError("expected ')")
 	}
 	p.next()
 	return list, nil
@@ -399,7 +399,7 @@ func (p *parser) parseFunction() (Expression, error) {
 
 func (p *parser) parseBlock() (Expression, error) {
 	if p.curr.Type != Lcurly {
-		return nil, fmt.Errorf("unexpected token %s", p.curr)
+		return nil, p.parseError("expected '{")
 	}
 	p.next()
 	var list []Expression
@@ -410,12 +410,12 @@ func (p *parser) parseBlock() (Expression, error) {
 		}
 		list = append(list, e)
 		if p.curr.Type != EOL {
-			return nil, fmt.Errorf("syntax error! missing eol")
+			return nil, p.parseError("expected newline or ';'")
 		}
 		p.next()
 	}
 	if p.curr.Type != Rcurly {
-		return nil, fmt.Errorf("unexpected token %s", p.curr)
+		return nil, p.parseError("expected '}")
 	}
 	p.next()
 	switch len(list) {
@@ -429,7 +429,7 @@ func (p *parser) parseBlock() (Expression, error) {
 func (p *parser) parseIf() (Expression, error) {
 	p.next()
 	if p.curr.Type != Lparen {
-		return nil, fmt.Errorf("unexpected token %s", p.curr)
+		return nil, p.parseError("expected '(")
 	}
 	p.next()
 
@@ -442,7 +442,7 @@ func (p *parser) parseIf() (Expression, error) {
 		return nil, err
 	}
 	if p.curr.Type != Rparen {
-		return nil, fmt.Errorf("unexpected token %s", p.curr)
+		return nil, p.parseError("expected ')")
 	}
 	p.next()
 	expr.csq, err = p.parseBlock()
@@ -460,7 +460,7 @@ func (p *parser) parseIf() (Expression, error) {
 		}
 	}
 	if p.curr.Type != EOL && p.curr.Type != EOF {
-		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		return nil, p.parseError("expected newline or ';'")
 	}
 	return expr, nil
 }
@@ -468,7 +468,7 @@ func (p *parser) parseIf() (Expression, error) {
 func (p *parser) parseWhile() (Expression, error) {
 	p.next()
 	if p.curr.Type != Lparen {
-		return nil, fmt.Errorf("unexpected token %s", p.curr)
+		return nil, p.parseError("expected '('")
 	}
 	p.next()
 
@@ -481,7 +481,7 @@ func (p *parser) parseWhile() (Expression, error) {
 		return nil, err
 	}
 	if p.curr.Type != Rparen {
-		return nil, fmt.Errorf("unexpected token %s", p.curr)
+		return nil, p.parseError("expected ']")
 	}
 	p.next()
 	expr.body, err = p.parseBlock()
@@ -489,7 +489,7 @@ func (p *parser) parseWhile() (Expression, error) {
 		return nil, err
 	}
 	if p.curr.Type != EOL && p.curr.Type != EOF {
-		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		return nil, p.parseError("expected newline or ';'")
 	}
 	return expr, nil
 }
@@ -529,7 +529,7 @@ func (p *parser) parseTernary(left Expression) (Expression, error) {
 		return nil, err
 	}
 	if p.curr.Type != Colon {
-		return nil, fmt.Errorf("syntax error! missing colon")
+		return nil, p.parseError("expected ':'")
 	}
 	p.next()
 
@@ -542,7 +542,7 @@ func (p *parser) parseTernary(left Expression) (Expression, error) {
 func (p *parser) parsePath(left Expression) (Expression, error) {
 	v, ok := left.(variable)
 	if !ok {
-		return nil, fmt.Errorf("can not used %T as path identifier")
+		return nil, fmt.Errorf("unexpected path operator")
 	}
 	p.next()
 	a := path{
@@ -560,7 +560,7 @@ func (p *parser) parseAssign(left Expression) (Expression, error) {
 	switch left.(type) {
 	case variable, index:
 	default:
-		return nil, fmt.Errorf("can not assign to %T", left)
+		return nil, fmt.Errorf("unexpected assignment operator")
 	}
 	op := p.curr.Type
 	p.next()
@@ -585,7 +585,7 @@ func (p *parser) parseAssign(left Expression) (Expression, error) {
 		case ModAssign:
 			op = Mod
 		default:
-			return nil, fmt.Errorf("invalid compound assignment operator")
+			return nil, p.parseError("compound assignment operator not recognized")
 		}
 		expr.right = binary{
 			op:    op,
@@ -615,7 +615,7 @@ func (p *parser) parseIndex(left Expression) (Expression, error) {
 	switch left.(type) {
 	case array, dict, index, variable:
 	default:
-		return nil, fmt.Errorf("%T can not be indexed", left)
+		return nil, p.parseError("unexpected index operator")
 	}
 	p.next()
 	expr, err := p.parse(powLowest)
@@ -623,7 +623,7 @@ func (p *parser) parseIndex(left Expression) (Expression, error) {
 		return nil, err
 	}
 	if p.curr.Type != Rsquare {
-		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		return nil, p.parseError("expected ']'")
 	}
 	p.next()
 	ix := index{
@@ -648,11 +648,11 @@ func (p *parser) parseArray() (Expression, error) {
 			p.skip(EOL)
 		case Rsquare:
 		default:
-			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+			return nil, p.parseError("expected ',' or ']")
 		}
 	}
 	if p.curr.Type != Rsquare {
-		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		return nil, p.parseError("expected ']'")
 	}
 	p.next()
 	return arr, nil
@@ -668,7 +668,7 @@ func (p *parser) parseDict() (Expression, error) {
 			return nil, err
 		}
 		if p.curr.Type != Colon {
-			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+			return nil, p.parseError("expected ':'")
 		}
 		p.next()
 		v, err := p.parse(powLowest)
@@ -682,11 +682,11 @@ func (p *parser) parseDict() (Expression, error) {
 			p.skip(EOL)
 		case Rcurly:
 		default:
-			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+			return nil, p.parseError("expected ',' or '}")
 		}
 	}
 	if p.curr.Type != Rcurly {
-		return nil, fmt.Errorf("unexpected token: %s", p.curr)
+		return nil, p.parseError("expected '}'")
 	}
 	p.next()
 	return d, nil
@@ -728,7 +728,7 @@ func (p *parser) parsePrefix() (Expression, error) {
 		expr = createBoolean(b)
 		p.next()
 	default:
-		return nil, fmt.Errorf("unuspported token: %s", p.curr)
+		return nil, p.parseError("prefix operator not recognized")
 	}
 	return expr, nil
 }
@@ -736,7 +736,7 @@ func (p *parser) parsePrefix() (Expression, error) {
 func (p *parser) parseCall(left Expression) (Expression, error) {
 	v, ok := left.(variable)
 	if !ok {
-		return nil, fmt.Errorf("syntax error! try to call non function")
+		return nil, p.parseError("unexpected call operator")
 	}
 	p.next()
 	expr := call{
@@ -754,22 +754,22 @@ func (p *parser) parseCall(left Expression) (Expression, error) {
 		switch p.curr.Type {
 		case Comma:
 			if p.peek.Type == Rparen {
-				return nil, fmt.Errorf("unexpected comma before closing paren")
+				return nil, p.parseError("unexpected ',' before ')")
 			}
 			p.next()
 		case Rparen:
 		default:
-			return nil, fmt.Errorf("syntax error! missing comma")
+			return nil, p.parseError("expected ','")
 		}
 	}
 	for p.curr.Type != Rparen && !p.done() {
 		if p.curr.Type != Ident {
-			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+			return nil, p.parseError("expected identifier")
 		}
 		a := createParameter(p.curr.Literal)
 		p.next()
 		if p.curr.Type != Assign {
-			return nil, fmt.Errorf("unexpected token: %s", p.curr)
+			return nil, p.parseError("expected '='")
 		}
 		p.next()
 		val, err := p.parse(powLowest)
@@ -781,16 +781,16 @@ func (p *parser) parseCall(left Expression) (Expression, error) {
 		switch p.curr.Type {
 		case Comma:
 			if p.peek.Type == Rparen {
-				return nil, fmt.Errorf("unexpected comma before closing paren")
+				return nil, p.parseError("unexpected ',' before ')")
 			}
 			p.next()
 		case Rparen:
 		default:
-			return nil, fmt.Errorf("syntax error! missing comma")
+			return nil, p.parseError("expected ','")
 		}
 	}
 	if p.curr.Type != Rparen {
-		return nil, fmt.Errorf("syntax error! missing closing )")
+		return nil, p.parseError("expected ')'")
 	}
 	p.next()
 	return expr, nil
@@ -803,7 +803,7 @@ func (p *parser) parseGroup() (Expression, error) {
 		return nil, err
 	}
 	if p.curr.Type != Rparen {
-		return nil, fmt.Errorf("syntax error: missing closing )")
+		return nil, p.parseError("expected ')'")
 	}
 	p.next()
 	return expr, nil
@@ -815,7 +815,7 @@ func (p *parser) eol() error {
 		p.next()
 	case EOF:
 	default:
-		return fmt.Errorf("syntax error! missing eol")
+		return p.parseError("expected newline or ';'")
 	}
 	return nil
 }
@@ -833,4 +833,12 @@ func (p *parser) done() bool {
 func (p *parser) next() {
 	p.curr = p.peek
 	p.peek = p.scan.Scan()
+}
+
+func (p *parser) parseError(message string) error {
+	return ParseError{
+		Token:   p.curr,
+		Line:    p.scan.getLine(p.curr.Position),
+		Message: message,
+	}
 }

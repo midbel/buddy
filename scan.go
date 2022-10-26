@@ -26,6 +26,21 @@ func Scan(r io.Reader) *Scanner {
 	return &x
 }
 
+func (s *Scanner) getLine(pos Position) string {
+	var start int
+	for i := 0; i < pos.Line-1; i++ {
+		x := bytes.IndexByte(s.input[start:], nl)
+		start += x + 1
+	}
+	end := bytes.IndexByte(s.input[start:], nl)
+	if end < 0 {
+		end = len(s.input)
+	} else {
+		end += start
+	}
+	return string(s.input[start:end])
+}
+
 func (s *Scanner) Scan() Token {
 	s.read()
 	if isBlank(s.char) {

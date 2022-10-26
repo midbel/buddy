@@ -2,7 +2,6 @@ package buddy
 
 import (
 	"fmt"
-	"strings"
 )
 
 func init() {
@@ -13,21 +12,8 @@ func init() {
 		trackLoop,
 		replaceFunctionArgs,
 		inlineFunctionCall,
-		replaceValue,
+		trackValue,
 	}
-}
-
-type errorsList []error
-
-func (e errorsList) Error() string {
-	var str strings.Builder
-	for i := range e {
-		if i > 0 {
-			str.WriteString("\n")
-		}
-		str.WriteString(e[i].Error())
-	}
-	return str.String()
 }
 
 type visitFunc func(Expression, *Resolver) (Expression, error)
@@ -48,7 +34,7 @@ func traverse(expr Expression, env *Resolver, visit []visitFunc) (Expression, er
 func replaceExprList(list []Expression, env *Resolver) ([]Expression, error) {
 	var err error
 	for i := range list {
-		list[i], err = replaceValue(list[i], env)
+		list[i], err = trackValue(list[i], env)
 		if err != nil {
 			return nil, err
 		}
@@ -56,7 +42,7 @@ func replaceExprList(list []Expression, env *Resolver) ([]Expression, error) {
 	return list, err
 }
 
-func replaceValue(expr Expression, env *Resolver) (Expression, error) {
+func trackValue(expr Expression, env *Resolver) (Expression, error) {
 	var err error
 	switch e := expr.(type) {
 	case script:
@@ -66,7 +52,7 @@ func replaceValue(expr Expression, env *Resolver) (Expression, error) {
 		e.args, err = replaceExprList(e.args, env)
 		return e, err
 	case unary:
-		e.right, err = replaceValue(e.right, env)
+		e.right, err = trackValue(e.right, env)
 		if err != nil {
 			return nil, err
 		}
@@ -79,11 +65,11 @@ func replaceValue(expr Expression, env *Resolver) (Expression, error) {
 		}
 		return e, nil
 	case binary:
-		e.left, err = replaceValue(e.left, env)
+		e.left, err = trackValue(e.left, env)
 		if err != nil {
 			return nil, err
 		}
-		e.right, err = replaceValue(e.right, env)
+		e.right, err = trackValue(e.right, env)
 		if err != nil {
 			return nil, err
 		}
@@ -96,52 +82,52 @@ func replaceValue(expr Expression, env *Resolver) (Expression, error) {
 		}
 		return e, nil
 	case assign:
-		e.right, err = replaceValue(e.right, env)
+		e.right, err = trackValue(e.right, env)
 		return e, err
 	case test:
-		e.cdt, err = replaceValue(e.cdt, env)
+		e.cdt, err = trackValue(e.cdt, env)
 		if err != nil {
 			return nil, err
 		}
-		e.csq, err = replaceValue(e.csq, env)
+		e.csq, err = trackValue(e.csq, env)
 		if err != nil {
 			return nil, err
 		}
 		if e.alt == nil {
 			return e, nil
 		}
-		e.alt, err = replaceValue(e.alt, env)
+		e.alt, err = trackValue(e.alt, env)
 		return e, err
 	case while:
-		e.cdt, err = replaceValue(e.cdt, env)
+		e.cdt, err = trackValue(e.cdt, env)
 		if err != nil {
 			return nil, err
 		}
-		e.body, err = replaceValue(e.body, env)
+		e.body, err = trackValue(e.body, env)
 		return e, err
 	case foreach:
-		e.iter, err = replaceValue(e.iter, env)
+		e.iter, err = trackValue(e.iter, env)
 		if err != nil {
 			return nil, err
 		}
-		e.body, err = replaceValue(e.body, env)
+		e.body, err = trackValue(e.body, env)
 		return e, err
 	case returned:
-		e.right, err = replaceValue(e.right, env)
+		e.right, err = trackValue(e.right, env)
 		return e, nil
 	case function:
 		e.params, err = replaceExprList(e.params, env)
 		if err != nil {
 			return nil, err
 		}
-		e.body, err = replaceValue(e.body, env)
+		e.body, err = trackValue(e.body, env)
 		return e, nil
 	case parameter:
-		e.expr, err = replaceValue(e.expr, env)
+		e.expr, err = trackValue(e.expr, env)
 		return e, err
 	case dict:
 		for k, v := range e.list {
-			e.list[k], err = replaceValue(v, env)
+			e.list[k], err = trackValue(v, env)
 			if err != nil {
 				return nil, err
 			}
@@ -151,7 +137,7 @@ func replaceValue(expr Expression, env *Resolver) (Expression, error) {
 		e.list, err = replaceExprList(e.list, env)
 		return e, err
 	case index:
-		e.expr, err = replaceValue(e.expr, env)
+		e.expr, err = trackValue(e.expr, env)
 		return e, nil
 	default:
 		return expr, nil

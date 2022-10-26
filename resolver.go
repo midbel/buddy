@@ -29,7 +29,7 @@ func NewResolver() *Resolver {
 
 func ResolveEnv(env *types.Environ) *Resolver {
 	return &Resolver{
-		paths:   append([]string, modPaths...),
+		paths:   append([]string{}, modPaths...),
 		Environ: env,
 		symbols: make(map[string]Expression),
 		modules: make(map[string]*Resolver),
