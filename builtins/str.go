@@ -8,6 +8,26 @@ import (
 	"github.com/midbel/slices"
 )
 
+var strmod = Module{
+	Name: "strings",
+	Builtins: map[string]Builtin{
+		"upper": {
+			Name: "upper",
+			Params: []Parameter{
+				createPositional("str"),
+			},
+			Call: runUpper,
+		},
+		"lower": {
+			Name: "lower",
+			Params: []Parameter{
+				createPositional("str"),
+			},
+			Call: runLower,
+		},
+	},
+}
+
 func runLower(args ...types.Primitive) (types.Primitive, error) {
 	if len(args) < 1 {
 		return nil, fmt.Errorf("printf: no enough argument given")

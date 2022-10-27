@@ -8,6 +8,20 @@ import (
 	"github.com/midbel/slices"
 )
 
+type Module struct {
+	Name     string
+	Env      *types.Environ
+	Builtins map[string]Builtin
+}
+
+func (m Module) Lookup(name string) (Builtin, error) {
+	b, ok := m.Builtins[name]
+	if !ok {
+		return b, fmt.Errorf("%s: function not defined", name)
+	}
+	return b, nil
+}
+
 type BuiltinFunc func(...types.Primitive) (types.Primitive, error)
 
 type Parameter struct {
@@ -36,6 +50,14 @@ type Builtin struct {
 }
 
 func (b Builtin) Run(args ...types.Primitive) (types.Primitive, error) {
+	if b.Call == nil {
+		return nil, fmt.Errorf("%s can not be called", b.Name)
+	}
+	if len(args) != len(b.Params) {
+		if b.Variadic && len(args) < len(b.Params) {
+			return nil, fmt.Errorf("%s: not enough argument given", b.Name)
+		}
+	}
 	res, err := b.Call(args...)
 	if err != nil {
 		err = fmt.Errorf("%s: %w", b.Name, err)
@@ -43,84 +65,99 @@ func (b Builtin) Run(args ...types.Primitive) (types.Primitive, error) {
 	return res, err
 }
 
-var Builtins = map[string]Builtin{
-	"int": {
-		Name: "int",
-		Params: []Parameter{
-			createPositional("value"),
+var Modules = []Module{
+	iomod,
+	strmod,
+	defmod,
+}
+
+var defmod = Module{
+	Name: "builtin",
+	Builtins: map[string]Builtin{
+		"int": {
+			Name: "int",
+			Params: []Parameter{
+				createPositional("value"),
+			},
+			Call: runInt,
 		},
-		Call: runInt,
-	},
-	"float": {
-		Name: "runFloat",
-		Params: []Parameter{
-			createPositional("value"),
+		"float": {
+			Name: "runFloat",
+			Params: []Parameter{
+				createPositional("value"),
+			},
+			Call: runFloat,
 		},
-		Call: runFloat,
-	},
-	"string": {
-		Name: "string",
-		Params: []Parameter{
-			createPositional("value"),
+		"string": {
+			Name: "string",
+			Params: []Parameter{
+				createPositional("value"),
+			},
+			Call: runString,
 		},
-		Call: runString,
-	},
-	"bool": {
-		Name: "string",
-		Params: []Parameter{
-			createPositional("value"),
+		"bool": {
+			Name: "string",
+			Params: []Parameter{
+				createPositional("value"),
+			},
+			Call: runBool,
 		},
-		Call: runBool,
-	},
-	"len": {
-		Name: "len",
-		Params: []Parameter{
-			createPositional("value"),
+		"len": {
+			Name: "len",
+			Params: []Parameter{
+				createPositional("value"),
+			},
+			Call: runLen,
 		},
-		Call: runLen,
-	},
-	"exit": {
-		Name: "exit",
-		Params: []Parameter{
-			createPositional("code"),
+		"exit": {
+			Name: "exit",
+			Params: []Parameter{
+				createPositional("code"),
+			},
+			Call: runExit,
 		},
-		Call: runExit,
-	},
-	"lower": {
-		Name: "lower",
-		Params: []Parameter{
-			createPositional("str"),
+		"lower": {
+			Name: "lower",
+			Params: []Parameter{
+				createPositional("str"),
+			},
+			Call: runLower,
 		},
-		Call: runLower,
-	},
-	"upper": {
-		Name: "upper",
-		Params: []Parameter{
-			createPositional("str"),
+		"upper": {
+			Name: "upper",
+			Params: []Parameter{
+				createPositional("str"),
+			},
+			Call: runUpper,
 		},
-		Call: runUpper,
-	},
-	"print": {
-		Name:     "print",
-		Variadic: true,
-		Call:     runPrint,
-	},
-	"printf": {
-		Name:     "printf",
-		Variadic: true,
-		Params: []Parameter{
-			createPositional("format"),
+		"print": {
+			Name:     "print",
+			Variadic: true,
+			Call:     runPrint,
 		},
-		Call: runPrintf,
+		"printf": {
+			Name:     "printf",
+			Variadic: true,
+			Params: []Parameter{
+				createPositional("format"),
+			},
+			Call: runPrintf,
+		},
+		"all": {
+			Name:     "all",
+			Variadic: true,
+			Call:     nil,
+		},
+		"any": {
+			Name:     "any",
+			Variadic: true,
+			Call:     nil,
+		},
 	},
 }
 
 func Lookup(name string) (Builtin, error) {
-	b, ok := Builtins[name]
-	if !ok {
-		return b, fmt.Errorf("%s: builtin not defined", name)
-	}
-	return b, nil
+	return defmod.Lookup(name)
 }
 
 func runInt(args ...types.Primitive) (types.Primitive, error) {

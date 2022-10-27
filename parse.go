@@ -617,19 +617,35 @@ func (p *parser) parseIndex(left Expression) (Expression, error) {
 	default:
 		return nil, p.parseError("unexpected index operator")
 	}
+	ix := index{
+		arr: left,
+	}
 	p.next()
-	expr, err := p.parse(powLowest)
-	if err != nil {
-		return nil, err
+	for p.curr.Type != Rsquare {
+		expr, err := p.parse(powLowest)
+		if err != nil {
+			return nil, err
+		}
+		ix.list = append(ix.list, expr)
+		p.next()
+		switch p.curr.Type {
+		case Comma:
+			if p.peek.Type == Rsquare {
+				return nil, p.parseError("unexpected ',' before ')")
+			}
+			p.next()
+		case Rsquare:
+		default:
+			return nil, p.parseError("expected ',' or ']")
+		}
 	}
 	if p.curr.Type != Rsquare {
 		return nil, p.parseError("expected ']'")
 	}
-	p.next()
-	ix := index{
-		arr:  left,
-		expr: expr,
+	if len(ix.list) == 0 {
+		return nil, p.parseError("empty index")
 	}
+	p.next()
 	return ix, nil
 }
 

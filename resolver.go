@@ -43,7 +43,11 @@ func (r *Resolver) Load(name []string, alias string, symbols map[string]string) 
 	if alias == "" {
 		alias = slices.Lst(name)
 	}
-	return r.loadModule(name, alias, symbols)
+	err := r.loadModule(name, alias, symbols)
+	if err != nil {
+		// try to load module from builtins
+	}
+	return err
 }
 
 func (r *Resolver) Find(name string) (*Resolver, error) {

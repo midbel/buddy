@@ -161,7 +161,9 @@ func printAST(w io.Writer, e Expression, level int) {
 		fmt.Fprintf(w, "%sindex", prefix)
 		fmt.Fprintln(w)
 		printAST(w, e.arr, level+1)
-		printAST(w, e.expr, level+2)
+		for i := range e.list {
+			printAST(w, e.list[i], level+2)
+		}
 	}
 }
 

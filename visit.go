@@ -137,7 +137,7 @@ func trackValue(expr Expression, env *Resolver) (Expression, error) {
 		e.list, err = replaceExprList(e.list, env)
 		return e, err
 	case index:
-		e.expr, err = trackValue(e.expr, env)
+		e.list, err = replaceExprList(e.list, env)
 		return e, nil
 	default:
 		return expr, nil
@@ -219,7 +219,11 @@ func trackLoop(expr Expression, env *Resolver) (Expression, error) {
 			if err != nil {
 				return err
 			}
-			return track(e.expr, false)
+			for i := range e.list {
+				if err := track(e.list[i], false); err != nil {
+					return err
+				}
+			}
 		case function:
 			return track(e.body, false)
 		case while:
@@ -386,7 +390,11 @@ func (k vartracker) check(expr Expression, env *Resolver) error {
 		if err = k.check(e.arr, env); err != nil {
 			break
 		}
-		err = k.check(e.expr, env)
+		for i := range e.list {
+			if err = k.check(e.list[i], env); err != nil {
+				break
+			}
+		}
 	default:
 	}
 	return err

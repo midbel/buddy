@@ -351,10 +351,6 @@ func evalDict(arr dict, env *Resolver) (types.Primitive, error) {
 }
 
 func evalIndex(idx index, env *Resolver) (types.Primitive, error) {
-	ix, err := eval(idx.expr, env)
-	if err != nil {
-		return nil, err
-	}
 	p, err := eval(idx.arr, env)
 	if err != nil {
 		return nil, err
@@ -363,11 +359,26 @@ func evalIndex(idx index, env *Resolver) (types.Primitive, error) {
 	if !ok {
 		return nil, fmt.Errorf("%T is not a container!", p)
 	}
-	return c.Get(ix)
+	var res types.Primitive
+	for j, e := range idx.list {
+		ix, err := eval(e, env)
+		if err != nil {
+			return nil, err
+		}
+		res, err = c.Get(ix)
+		if err != nil {
+			return nil, err
+		}
+		c, ok = res.(types.Container)
+		if !ok && j == len(idx.list)-1 {
+			return nil, fmt.Errorf("%T is not a container")
+		}
+	}
+	return res, nil
 }
 
 func assignIndex(idx index, value types.Primitive, env *Resolver) (types.Primitive, error) {
-	ix, err := eval(idx.expr, env)
+	ix, err := eval(idx.list[0], env)
 	if err != nil {
 		return nil, err
 	}

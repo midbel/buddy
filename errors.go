@@ -14,6 +14,8 @@ func PrintError(w io.Writer, err error) {
 	var perr ParseError
 	if errors.As(err, &perr) {
 		printParseError(w, perr)
+	} else {
+		fmt.Fprintln(w, err)
 	}
 }
 

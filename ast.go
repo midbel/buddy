@@ -141,7 +141,7 @@ func (_ dict) isPrimitive() bool {
 
 type index struct {
 	arr  Expression
-	expr Expression
+	list []Expression
 }
 
 func (_ index) isPrimitive() bool {
