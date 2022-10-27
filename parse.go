@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+
+	"github.com/midbel/slices"
 )
 
 const MaxArity = 255
@@ -263,6 +265,7 @@ func (p *parser) parseFrom() (Expression, error) {
 		}
 		s := symbol{
 			ident: p.curr.Literal,
+			alias: p.curr.Literal,
 		}
 		p.next()
 		if p.curr.Type == Keyword && p.curr.Literal == kwAs {
@@ -302,6 +305,7 @@ func (p *parser) parseImport() (Expression, error) {
 	if len(mod.ident) == 0 {
 		return nil, p.parseError("no identifier given for import")
 	}
+	mod.alias = slices.Lst(mod.ident)
 	if p.curr.Type == Keyword && p.curr.Literal == kwAs {
 		p.next()
 		if p.curr.Type != Ident {

@@ -9,7 +9,7 @@ import (
 )
 
 type Callable interface {
-	Call(...types.Primitive) (types.Primitive, error)
+	Call(*Resolver, ...types.Primitive) (types.Primitive, error)
 	Arity() int
 	Variadic() bool
 	at(int) (string, error)
@@ -17,13 +17,11 @@ type Callable interface {
 }
 
 type callBuiltin struct {
-	resolv  *Resolver
 	builtin builtins.Builtin
 }
 
-func makeCallFromBuiltin(res *Resolver, b builtins.Builtin) Callable {
+func callableFromBuiltin(b builtins.Builtin) Callable {
 	return callBuiltin{
-		resolv:  res,
 		builtin: b,
 	}
 }
@@ -36,11 +34,7 @@ func (c callBuiltin) Variadic() bool {
 	return c.builtin.Variadic
 }
 
-func (c callBuiltin) Call(args ...types.Primitive) (types.Primitive, error) {
-	if err := c.resolv.enter(); err != nil {
-		return nil, err
-	}
-	defer c.resolv.leave()
+func (c callBuiltin) Call(_ *Resolver, args ...types.Primitive) (types.Primitive, error) {
 	return c.builtin.Run(args...)
 }
 
@@ -62,18 +56,16 @@ func (c callBuiltin) index(ident string) (int, error) {
 }
 
 type callExpr struct {
-	resolv *Resolver
-	fun    function
+	fun function
 }
 
-func makeCallFromExpr(res *Resolver, e Expression) (Callable, error) {
+func callableFromExpression(e Expression) (Callable, error) {
 	fun, ok := e.(function)
 	if !ok {
 		return nil, fmt.Errorf("expression is not a function")
 	}
 	return callExpr{
-		resolv: res,
-		fun:    fun,
+		fun: fun,
 	}, nil
 }
 
@@ -85,7 +77,7 @@ func (_ callExpr) Variadic() bool {
 	return false
 }
 
-func (c callExpr) Call(args ...types.Primitive) (types.Primitive, error) {
+func (c callExpr) Call(res *Resolver, args ...types.Primitive) (types.Primitive, error) {
 	if len(args) > len(c.fun.params) {
 		return nil, fmt.Errorf("%s: invalid number of arguments given", c.fun.ident)
 	}
@@ -101,7 +93,7 @@ func (c callExpr) Call(args ...types.Primitive) (types.Primitive, error) {
 			if p.expr == nil {
 				return nil, fmt.Errorf("%s: parameter not set", p.ident)
 			}
-			v, err := eval(p.expr, c.resolv)
+			v, err := eval(p.expr, res)
 			if err != nil {
 				return nil, err
 			}
@@ -109,16 +101,7 @@ func (c callExpr) Call(args ...types.Primitive) (types.Primitive, error) {
 		}
 		env.Define(p.ident, a)
 	}
-	if err := c.resolv.enter(); err != nil {
-		return nil, err
-	}
-	old := c.resolv.Environ
-	defer func() {
-		c.resolv.Environ = old
-		c.resolv.leave()
-	}()
-	c.resolv.Environ = env
-	return eval(c.fun.body, c.resolv)
+	return eval(c.fun.body, res.Sub(env))
 }
 
 func (c callExpr) at(i int) (string, error) {

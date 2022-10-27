@@ -2,6 +2,7 @@ package builtins
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 
 	"github.com/midbel/buddy/types"
@@ -10,8 +11,26 @@ import (
 
 type Module struct {
 	Name     string
-	Env      *types.Environ
 	Builtins map[string]Builtin
+}
+
+func (m Module) Filter(names map[string]string) (Module, error) {
+	if len(names) == 0 {
+		return m, nil
+	}
+	bs := make(map[string]Builtin)
+	for n, a := range names {
+		b, ok := m.Builtins[n]
+		if !ok {
+			return m, fmt.Errorf("%s: undefined function", n)
+		}
+		bs[a] = b
+	}
+	mod := Module{
+		Name:     m.Name,
+		Builtins: bs,
+	}
+	return mod, nil
 }
 
 func (m Module) Lookup(name string) (Builtin, error) {
@@ -116,48 +135,56 @@ var defmod = Module{
 			},
 			Call: runExit,
 		},
-		"lower": {
-			Name: "lower",
-			Params: []Parameter{
-				createPositional("str"),
-			},
-			Call: runLower,
-		},
-		"upper": {
-			Name: "upper",
-			Params: []Parameter{
-				createPositional("str"),
-			},
-			Call: runUpper,
-		},
-		"print": {
-			Name:     "print",
-			Variadic: true,
-			Call:     runPrint,
-		},
-		"printf": {
-			Name:     "printf",
-			Variadic: true,
-			Params: []Parameter{
-				createPositional("format"),
-			},
-			Call: runPrintf,
-		},
 		"all": {
 			Name:     "all",
 			Variadic: true,
-			Call:     nil,
+			Call:     runAll,
 		},
 		"any": {
 			Name:     "any",
 			Variadic: true,
-			Call:     nil,
+			Call:     runAny,
 		},
 	},
 }
 
-func Lookup(name string) (Builtin, error) {
+func LookupModule(name string) (Module, error) {
+	sort.Slice(Modules, func(i, j int) bool {
+		return Modules[i].Name <= Modules[j].Name
+	})
+	i := sort.Search(len(Modules), func(i int) bool {
+		return Modules[i].Name >= name
+	})
+	if i < len(Modules) && Modules[i].Name == name {
+		return Modules[i], nil
+	}
+	return Module{}, fmt.Errorf("%s: undefined module", name)
+}
+
+func LookupBuiltin(name string) (Builtin, error) {
 	return defmod.Lookup(name)
+}
+
+func runAll(args ...types.Primitive) (types.Primitive, error) {
+	var ok bool
+	for _, a := range args {
+		ok = a.True()
+		if !ok {
+			break
+		}
+	}
+	return types.CreateBool(ok), nil
+}
+
+func runAny(args ...types.Primitive) (types.Primitive, error) {
+	var ok bool
+	for _, a := range args {
+		ok = a.True()
+		if ok {
+			break
+		}
+	}
+	return types.CreateBool(ok), nil
 }
 
 func runInt(args ...types.Primitive) (types.Primitive, error) {

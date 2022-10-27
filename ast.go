@@ -51,22 +51,6 @@ func (_ module) isPrimitive() bool {
 	return false
 }
 
-type alias struct {
-	module string
-	ident  string
-}
-
-func createAlias(module, ident string) alias {
-	return alias{
-		module: module,
-		ident:  ident,
-	}
-}
-
-func (_ alias) isPrimitive() bool {
-	return false
-}
-
 type variable struct {
 	ident string
 }
@@ -141,7 +125,7 @@ func (_ dict) isPrimitive() bool {
 
 type slice struct {
 	start Expression
-	end Expression
+	end   Expression
 }
 
 func (_ slice) isPrimitive() bool {
