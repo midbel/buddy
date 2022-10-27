@@ -30,6 +30,13 @@ func EvalEnv(r io.Reader, env *types.Environ) (types.Primitive, error) {
 func Execute(expr Expression, env *types.Environ) (types.Primitive, error) {
 	resolv := ResolveEnv(env)
 	if s, ok := expr.(script); ok {
+		var err error
+		for k, e := range s.symbols {
+			s.symbols[k], err = traverse(e, resolv, visitors)
+			if err != nil {
+				return nil, err
+			}
+		}
 		resolv.current = userDefinedModule(s.symbols)
 	}
 	return execute(expr, resolv)
@@ -40,12 +47,6 @@ func execute(expr Expression, env *Resolver) (types.Primitive, error) {
 	if expr, err = traverse(expr, env, visitors); err != nil {
 		return nil, err
 	}
-	// for k, e := range env.symbols {
-	// 	env.symbols[k], err = traverse(e, env, visitors)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// }
 	return eval(expr, env)
 }
 

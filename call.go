@@ -57,15 +57,30 @@ func (c callBuiltin) index(ident string) (int, error) {
 
 type callExpr struct {
 	fun function
+	ctx Module
 }
 
 func callableFromExpression(e Expression) (Callable, error) {
-	fun, ok := e.(function)
-	if !ok {
+	var (
+		fun function
+		mod Module
+	)
+	switch e := e.(type) {
+	case function:
+		fun = e
+	case link:
+		f, ok := e.Expression.(function)
+		if !ok {
+			return nil, fmt.Errorf("expression is not a function")	
+		}
+		fun = f
+		mod = e.Module
+	default:
 		return nil, fmt.Errorf("expression is not a function")
 	}
 	return callExpr{
 		fun: fun,
+		ctx: mod,
 	}, nil
 }
 
@@ -100,6 +115,13 @@ func (c callExpr) Call(res *Resolver, args ...types.Primitive) (types.Primitive,
 			a = v
 		}
 		env.Define(p.ident, a)
+	}
+	if c.ctx != nil {
+		old := res.current
+		defer func() {
+			res.current = old
+		}()
+		res.current = c.ctx
 	}
 	return eval(c.fun.body, res.Sub(env))
 }

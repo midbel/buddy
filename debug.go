@@ -13,22 +13,29 @@ func Debug(w io.Writer, r io.Reader, visit bool) error {
 		return err
 	}
 	if visit {
-		resolv := NewResolver()
-		if s, ok := expr.(script); ok {
-			resolv.current = userDefinedModule(s.symbols)
-		}
-		if expr, err = traverse(expr, resolv, visitors); err != nil {
-			return err
-		}
-		// for k, e := range resolv.symbols {
-		// 	resolv.symbols[k], err = traverse(e, resolv, visitors)
-		// 	if err != nil {
-		// 		return err
-		// 	}
-		// }
+		expr, err = optimize(expr)
 	}
 	printAST(w, expr, 0)
 	return nil
+}
+
+func optimize(expr Expression) (Expression, error) {
+	s, ok := expr.(script)
+	if !ok {
+		return expr, nil
+	}
+	var (
+		res = NewResolver()
+		err error
+	)
+	for k, e := range s.symbols {
+		s.symbols[k], err = traverse(e, res, visitors)
+		if err != nil {
+			return nil, err
+		}
+	}
+	res.current = userDefinedModule(s.symbols)
+	return traverse(expr, res, visitors)
 }
 
 func printAST(w io.Writer, e Expression, level int) {

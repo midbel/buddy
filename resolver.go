@@ -18,6 +18,11 @@ type Module interface {
 	Lookup(string) (Callable, error)
 }
 
+type link struct {
+	Expression
+	Module
+}
+
 type builtinModule struct {
 	module builtins.Module
 }
@@ -119,9 +124,6 @@ func (r *Resolver) Load(name []string, alias string, symbols map[string]string) 
 }
 
 func (r *Resolver) loadUserDefinedModule(name []string, alias string, symbols map[string]string) error {
-	if _, ok := r.modules[alias]; ok {
-		return nil
-	}
 	var (
 		file = filepath.Join(name...) + ".bud"
 		list map[string]Expression
@@ -136,22 +138,26 @@ func (r *Resolver) loadUserDefinedModule(name []string, alias string, symbols ma
 	if err != nil {
 		return fmt.Errorf("fail to load module from %s", file)
 	}
+	mod := moduleFromSymbols(list)
 	if len(symbols) == 0 {
-		r.modules[alias] = moduleFromSymbols(list)
+		r.modules[alias] = mod
 		return nil
 	}
-	// for n, a := range symbols {
-	// 	expr, ok := list[n]
-	// 	if !ok {
-	// 		return fmt.Errorf("%s can not be imported", n)
-	// 	}
-	// 	userdef, ok := r.current.(userDefinedModule)
-	// 	if !ok {
-	// 		return fmt.Errorf("module can not be modified")
-	// 	}
-	// 	userdef[a] = expr
-	// 	fmt.Println(n, "=>", a)
-	// }
+	for n, a := range symbols {
+		expr, ok := list[n]
+		if !ok {
+			return fmt.Errorf("%s can not be imported", n)
+		}
+		userdef, ok := r.current.(userDefinedModule)
+		if !ok {
+			return fmt.Errorf("module can not be modified")
+		}
+		userdef[a] = link{
+			Expression: expr,
+			Module: mod,
+		}
+		fmt.Printf("%s => %s => %T\n", n, a, expr)
+	}
 	return nil
 }
 
