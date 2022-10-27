@@ -139,6 +139,15 @@ func (_ dict) isPrimitive() bool {
 	return false
 }
 
+type slice struct {
+	start Expression
+	end Expression
+}
+
+func (_ slice) isPrimitive() bool {
+	return false
+}
+
 type index struct {
 	arr  Expression
 	list []Expression
