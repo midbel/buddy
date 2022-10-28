@@ -269,19 +269,32 @@ func evalCall(c call, env *Resolver) (types.Primitive, error) {
 }
 
 func evalPath(pat path, env *Resolver) (types.Primitive, error) {
-	fun, ok := pat.right.(call)
-	if !ok {
-		return nil, fmt.Errorf("expression expected to be call! got %T", pat.right)
+	switch right := pat.right.(type) {
+	case call:
+		call, err := env.LookupCallable(right.ident, pat.ident)
+		if err != nil {
+			return nil, err
+		}
+		args, err := evalArguments(call, right.args, env)
+		if err != nil {
+			return nil, err
+		}
+		return call.Call(args...)
+	case variable:
+		res, err := env.Resolve(pat.ident)
+		if err != nil {
+			return nil, err
+		}
+		c, ok := res.(types.Container)
+		if !ok {
+			return nil, fmt.Errorf("%s is not a container", res)
+		}
+		return c.Get(types.CreateString(right.ident))
+	case dict:
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("unexpected expression type")
 	}
-	call, err := env.LookupCallable(fun.ident, pat.ident)
-	if err != nil {
-		return nil, err
-	}
-	args, err := evalArguments(call, fun.args, env)
-	if err != nil {
-		return nil, err
-	}
-	return call.Call(args...)
 }
 
 func evalArguments(call Callable, args []Expression, env *Resolver) ([]types.Primitive, error) {

@@ -367,7 +367,11 @@ func (k vartracker) check(expr Expression, env *Resolver) error {
 		}
 		err = k.check(e.right, env)
 	case path:
-		err = k.check(e.right, env)
+		if _, ok := e.right.(variable); !ok {
+			err = k.check(e.right, env)
+		} else {
+			k.set(e.ident)
+		}
 	case variable:
 		if !k.exists(e.ident) {
 			err = undefinedVar(e.ident)
