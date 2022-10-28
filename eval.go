@@ -7,6 +7,7 @@ import (
 
 	"github.com/midbel/buddy/builtins"
 	"github.com/midbel/buddy/types"
+	"github.com/midbel/slices"
 )
 
 var (
@@ -71,7 +72,7 @@ func eval(expr Expression, env *Resolver) (types.Primitive, error) {
 	case index:
 		return evalIndex(e, env)
 	case module:
-		return evalModule(e, env)
+		return evalImport(e, env)
 	case path:
 		return evalPath(e, env)
 	case literal:
@@ -303,7 +304,7 @@ func evalPath(pat path, env *Resolver) (types.Primitive, error) {
 	return nil, fmt.Errorf("not yet implemented")
 }
 
-func evalModule(mod module, env *Resolver) (types.Primitive, error) {
+func evalImport(mod module, env *Resolver) (types.Primitive, error) {
 	if mod.alias == "" {
 		mod.alias = slices.Lst(mod.ident)
 	}

@@ -148,17 +148,3 @@ func (m builtinModule) Lookup(name string) (Callable, error) {
 	}
 	return callableFromBuiltin(b), nil
 }
-
-type userDefinedModule map[string]Expression
-
-func moduleFromSymbols(symbols map[string]Expression) Module {
-	return userDefinedModule(symbols)
-}
-
-func emptyModule() Module {
-	return make(userDefinedModule)
-}
-
-func (m userDefinedModule) Lookup(name string) (Callable, error) {
-	return callableFromExpression(m[name])
-}
