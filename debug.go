@@ -34,7 +34,7 @@ func optimize(expr Expression) (Expression, error) {
 			return nil, err
 		}
 	}
-	res.current = userDefinedModule(s.symbols)
+	res.symbols = s.symbols
 	return traverse(expr, res, visitors)
 }
 

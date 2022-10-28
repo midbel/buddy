@@ -37,7 +37,7 @@ func Execute(expr Expression, env *types.Environ) (types.Primitive, error) {
 				return nil, err
 			}
 		}
-		resolv.current = userDefinedModule(s.symbols)
+		resolv.symbols = s.symbols
 	}
 	return execute(expr, resolv)
 }
@@ -300,27 +300,11 @@ func evalCall(c call, env *Resolver) (types.Primitive, error) {
 }
 
 func evalPath(pat path, env *Resolver) (types.Primitive, error) {
-	sub, err := env.Find(pat.ident)
-	if err != nil {
-		return nil, err
-	}
-	old := sub.Environ
-	defer func() {
-		sub.Environ = old
-	}()
-	sub.Environ = env.Environ
-	return eval(pat.right, sub)
+	return nil, fmt.Errorf("not yet implemented")
 }
 
 func evalModule(mod module, env *Resolver) (types.Primitive, error) {
-	list := make(map[string]string)
-	for _, s := range mod.symbols {
-		if s.alias == "" {
-			s.alias = s.ident
-		}
-		list[s.ident] = s.alias
-	}
-	return nil, env.Load(mod.ident, mod.alias, list)
+	return nil, fmt.Errorf("not yet implemented")
 }
 
 func evalArray(arr array, env *Resolver) (types.Primitive, error) {

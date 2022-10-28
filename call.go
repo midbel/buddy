@@ -57,30 +57,15 @@ func (c callBuiltin) index(ident string) (int, error) {
 
 type callExpr struct {
 	fun function
-	ctx Module
 }
 
 func callableFromExpression(e Expression) (Callable, error) {
-	var (
-		fun function
-		mod Module
-	)
-	switch e := e.(type) {
-	case function:
-		fun = e
-	case link:
-		f, ok := e.Expression.(function)
-		if !ok {
-			return nil, fmt.Errorf("expression is not a function")	
-		}
-		fun = f
-		mod = e.Module
-	default:
+	fun, ok := e.(function)
+	if !ok {
 		return nil, fmt.Errorf("expression is not a function")
 	}
 	return callExpr{
 		fun: fun,
-		ctx: mod,
 	}, nil
 }
 
@@ -116,14 +101,12 @@ func (c callExpr) Call(res *Resolver, args ...types.Primitive) (types.Primitive,
 		}
 		env.Define(p.ident, a)
 	}
-	if c.ctx != nil {
-		old := res.current
-		defer func() {
-			res.current = old
-		}()
-		res.current = c.ctx
-	}
-	return eval(c.fun.body, res.Sub(env))
+	old := res.Environ
+	defer func() {
+		res.Environ = old
+	}()
+	res.Environ = env
+	return eval(c.fun.body, res)
 }
 
 func (c callExpr) at(i int) (string, error) {
@@ -142,4 +125,40 @@ func (c callExpr) index(ident string) (int, error) {
 		return x, fmt.Errorf("%s: parameter not defined", ident)
 	}
 	return x, nil
+}
+
+type Module interface {
+	Lookup(string) (Callable, error)
+}
+
+type builtinModule struct {
+	module builtins.Module
+}
+
+func moduleFromBuiltin(mod builtins.Module) Module {
+	return builtinModule{
+		module: mod,
+	}
+}
+
+func (m builtinModule) Lookup(name string) (Callable, error) {
+	b, err := m.module.Lookup(name)
+	if err != nil {
+		return nil, err
+	}
+	return callableFromBuiltin(b), nil
+}
+
+type userDefinedModule map[string]Expression
+
+func moduleFromSymbols(symbols map[string]Expression) Module {
+	return userDefinedModule(symbols)
+}
+
+func emptyModule() Module {
+	return make(userDefinedModule)
+}
+
+func (m userDefinedModule) Lookup(name string) (Callable, error) {
+	return callableFromExpression(m[name])
 }
