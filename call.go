@@ -53,6 +53,9 @@ type callExpr struct {
 }
 
 func callableFromExpression(ctx *Resolver, expr Expression) (Callable, error) {
+	if k, ok := expr.(link); ok {
+		return k.Callable, nil
+	}
 	fun, ok := expr.(function)
 	if !ok {
 		return nil, fmt.Errorf("expression is not a function")

@@ -324,10 +324,17 @@ func evalArguments(call Callable, args []Expression, env *Resolver) ([]types.Pri
 }
 
 func evalImport(mod module, env *Resolver) (types.Primitive, error) {
+	symbols := make(map[string]string)
+	for _, s := range mod.symbols {
+		if s.alias == "" {
+			s.alias = s.ident
+		}
+		symbols[s.ident] = s.alias
+	}
 	if mod.alias == "" {
 		mod.alias = slices.Lst(mod.ident)
 	}
-	err := env.Load(mod.ident, mod.alias)
+	err := env.Load(mod.ident, mod.alias, symbols)
 	return nil, err
 }
 

@@ -23,6 +23,20 @@ func createPrimitive(res interface{}) (Expression, error) {
 	}
 }
 
+type link struct {
+	Callable
+}
+
+func createLink(call Callable) Expression {
+	return link{
+		Callable: call,
+	}
+}
+
+func (_ link) isPrimitive() bool {
+	return false
+}
+
 type path struct {
 	ident string
 	right Expression

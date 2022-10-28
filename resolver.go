@@ -48,16 +48,36 @@ func ResolveEnv(env *types.Environ) *Resolver {
 	}
 }
 
-func (r *Resolver) Load(names []string, alias string) error {
+func (r *Resolver) Load(names []string, alias string, symbols map[string]string) error {
 	if mod, err := builtins.LookupModule(slices.Lst(names)); err == nil {
-		r.modules[alias] = moduleFromBuiltin(mod)
-		return err
+		if len(symbols) == 0 {
+			r.modules[alias] = moduleFromBuiltin(mod)
+			return nil
+		}
+		for ident, alias := range symbols {
+			call, err := mod.Lookup(ident)
+			if err != nil {
+				return err
+			}
+			r.symbols[alias] = createLink(callableFromBuiltin(call))
+		}
+		return nil
 	}
 	mod, err := loadModule(names, r.paths)
 	if err != nil {
 		return err
 	}
-	r.modules[alias] = mod
+	if len(symbols) == 0 {
+		r.modules[alias] = mod
+		return nil
+	}
+	for ident, alias := range symbols {
+		call, err := mod.Lookup(ident)
+		if err != nil {
+			return err
+		}
+		r.symbols[alias] = createLink(call)
+	}
 	return nil
 }
 
