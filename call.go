@@ -9,10 +9,9 @@ import (
 )
 
 type Callable interface {
-	Call(*Resolver, ...types.Primitive) (types.Primitive, error)
+	Call(...types.Primitive) (types.Primitive, error)
 	Arity() int
 	Variadic() bool
-	at(int) (string, error)
 	index(string) (int, error)
 }
 
@@ -34,15 +33,8 @@ func (c callBuiltin) Variadic() bool {
 	return c.builtin.Variadic
 }
 
-func (c callBuiltin) Call(_ *Resolver, args ...types.Primitive) (types.Primitive, error) {
+func (c callBuiltin) Call(args ...types.Primitive) (types.Primitive, error) {
 	return c.builtin.Run(args...)
-}
-
-func (c callBuiltin) at(i int) (string, error) {
-	if i > len(c.builtin.Params) || i < 0 {
-		return "", fmt.Errorf("index out of range")
-	}
-	return c.builtin.Params[i].Name, nil
 }
 
 func (c callBuiltin) index(ident string) (int, error) {
@@ -57,15 +49,17 @@ func (c callBuiltin) index(ident string) (int, error) {
 
 type callExpr struct {
 	fun function
+	ctx *Resolver
 }
 
-func callableFromExpression(e Expression) (Callable, error) {
-	fun, ok := e.(function)
+func callableFromExpression(ctx *Resolver, expr Expression) (Callable, error) {
+	fun, ok := expr.(function)
 	if !ok {
 		return nil, fmt.Errorf("expression is not a function")
 	}
 	return callExpr{
 		fun: fun,
+		ctx: ctx,
 	}, nil
 }
 
@@ -77,11 +71,15 @@ func (_ callExpr) Variadic() bool {
 	return false
 }
 
-func (c callExpr) Call(res *Resolver, args ...types.Primitive) (types.Primitive, error) {
+func (c callExpr) Call(args ...types.Primitive) (types.Primitive, error) {
 	if len(args) > len(c.fun.params) {
 		return nil, fmt.Errorf("%s: invalid number of arguments given", c.fun.ident)
 	}
-	env := types.EmptyEnv()
+	old := c.ctx.Environ
+	defer func() {
+		c.ctx.Environ = old
+	}()
+	c.ctx.Environ = types.EmptyEnv()
 	for i := range c.fun.params {
 		var (
 			p, _ = c.fun.params[i].(parameter)
@@ -93,28 +91,15 @@ func (c callExpr) Call(res *Resolver, args ...types.Primitive) (types.Primitive,
 			if p.expr == nil {
 				return nil, fmt.Errorf("%s: parameter not set", p.ident)
 			}
-			v, err := eval(p.expr, res)
+			v, err := eval(p.expr, c.ctx)
 			if err != nil {
 				return nil, err
 			}
 			a = v
 		}
-		env.Define(p.ident, a)
+		c.ctx.Define(p.ident, a)
 	}
-	old := res.Environ
-	defer func() {
-		res.Environ = old
-	}()
-	res.Environ = env
-	return eval(c.fun.body, res)
-}
-
-func (c callExpr) at(i int) (string, error) {
-	if i > len(c.fun.params) || i < 0 {
-		return "", fmt.Errorf("index out of range")
-	}
-	e := c.fun.params[i]
-	return e.(parameter).ident, nil
+	return eval(c.fun.body, c.ctx)
 }
 
 func (c callExpr) index(ident string) (int, error) {

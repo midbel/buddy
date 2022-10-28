@@ -29,7 +29,7 @@ var iomod = Module{
 
 func runPrintf(args ...types.Primitive) (types.Primitive, error) {
 	if len(args) < 1 {
-		return nil, fmt.Errorf("printf: no enough argument given")
+		return nil, fmt.Errorf("no enough argument given")
 	}
 	pattern, ok := slices.Fst(args).Raw().(string)
 	if !ok {
@@ -44,9 +44,6 @@ func runPrintf(args ...types.Primitive) (types.Primitive, error) {
 }
 
 func runPrint(args ...types.Primitive) (types.Primitive, error) {
-	if len(args) < 1 {
-		return nil, fmt.Errorf("print: no enough argument given")
-	}
 	var list []any
 	for i := range args {
 		list = append(list, args[i].Raw())

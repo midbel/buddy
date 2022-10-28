@@ -23,6 +23,7 @@ const (
 type Resolver struct {
 	*types.Environ
 
+	name    string
 	paths   []string
 	level   int
 	symbols map[string]Expression
@@ -39,6 +40,7 @@ func ResolveEnv(env *types.Environ) *Resolver {
 		paths = append(paths, ImportPaths...)
 	}
 	return &Resolver{
+		name:    "main",
 		paths:   paths,
 		Environ: env,
 		symbols: make(map[string]Expression),
@@ -60,9 +62,20 @@ func (r *Resolver) Load(names []string, alias string) error {
 }
 
 func (r *Resolver) Lookup(name string) (Callable, error) {
+	return r.LookupCallable(name, "")
+}
+
+func (r *Resolver) LookupCallable(name, module string) (Callable, error) {
+	if module != "" {
+		mod, ok := r.modules[module]
+		if !ok {
+			return nil, fmt.Errorf("%s: module not defined", module)
+		}
+		return mod.Lookup(name)
+	}
 	e, ok := r.symbols[name]
 	if ok {
-		return callableFromExpression(e)
+		return callableFromExpression(r, e)
 	}
 	b, err := builtins.LookupBuiltin(name)
 	if err == nil {
@@ -97,6 +110,9 @@ func loadModule(names, paths []string) (Module, error) {
 		}
 		res := NewResolver()
 		_, err = execute(expr, res)
+		if err == nil {
+			res.name = slices.Lst(names)
+		}
 		return res, err
 	}
 	var (
