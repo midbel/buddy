@@ -46,12 +46,12 @@ func (a Array) True() bool {
 	return len(a.values) > 0
 }
 
-func (a Array) Rev() (Primitive, error) {
-	return nil, unsupportedOp("reverse", a)
-}
-
 func (a Array) Not() (Primitive, error) {
 	return CreateBool(!a.True()), nil
+}
+
+func (a Array) Rev() (Primitive, error) {
+	return nil, unsupportedOp("reverse", a)
 }
 
 func (a Array) Add(other Primitive) (Primitive, error) {
@@ -107,7 +107,6 @@ func (a Array) Div(other Primitive) (Primitive, error) {
 		size = len(a.values)
 		step = size / offset
 	)
-	fmt.Println(step)
 	for i := 0; i < size && len(arr.values) < offset; i += step {
 		end := i + step
 		if end > size || len(arr.values) == offset-1 {
