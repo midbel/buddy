@@ -82,6 +82,14 @@ func incompatibleType(op string, left, right Primitive) error {
 	return fmt.Errorf("%s: %w %s/%s", op, ErrIncompatible, typeName(left), typeName(right))
 }
 
+func Type(val Primitive) (string, error) {
+	name := typeName(val)
+	if name == "" {
+		return name, fmt.Errorf("unrecognized primitive type")
+	}
+	return name, nil
+}
+
 func typeName(val Primitive) string {
 	switch val.(type) {
 	case String:
@@ -92,10 +100,10 @@ func typeName(val Primitive) string {
 		return "float"
 	case Bool:
 		return "boolean"
-	// case Array:
-	// 	return "array"
-	// case Dict:
-	// 	return "dict"
+	case Array:
+		return "array"
+	case Dict:
+		return "dict"
 	default:
 		return "?"
 	}

@@ -145,6 +145,13 @@ var defmod = Module{
 			Variadic: true,
 			Call:     runAny,
 		},
+		"typeof": {
+			Name: "typeof",
+			Params: []Parameter{
+				createPositional("value"),
+			},
+			Call: runTypeof,
+		},
 	},
 }
 
@@ -163,6 +170,14 @@ func LookupModule(name string) (Module, error) {
 
 func LookupBuiltin(name string) (Builtin, error) {
 	return defmod.Lookup(name)
+}
+
+func runTypeof(args ...types.Primitive) (types.Primitive, error) {
+	name, err := types.Type(slices.Fst(args))
+	if err != nil {
+		return nil, err
+	}
+	return types.CreateString(name), nil
 }
 
 func runAll(args ...types.Primitive) (types.Primitive, error) {
