@@ -386,8 +386,8 @@ func evalIndex(idx index, env *Resolver) (types.Primitive, error) {
 			return nil, err
 		}
 		c, ok = res.(types.Container)
-		if !ok && j == len(idx.list)-1 {
-			return nil, fmt.Errorf("%T is not a container")
+		if !ok && j < len(idx.list)-1 {
+			return nil, fmt.Errorf("%T is not a container", res)
 		}
 	}
 	return res, nil

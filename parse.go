@@ -617,7 +617,7 @@ func (p *parser) parseInfix(left Expression) (Expression, error) {
 
 func (p *parser) parseIndex(left Expression) (Expression, error) {
 	switch left.(type) {
-	case array, dict, index, variable:
+	case array, dict, index, variable, literal:
 	default:
 		return nil, p.parseError("unexpected index operator")
 	}
@@ -631,7 +631,6 @@ func (p *parser) parseIndex(left Expression) (Expression, error) {
 			return nil, err
 		}
 		ix.list = append(ix.list, expr)
-		p.next()
 		switch p.curr.Type {
 		case Comma:
 			if p.peek.Type == Rsquare {

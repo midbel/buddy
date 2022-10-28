@@ -1,5 +1,9 @@
 package types
 
+import (
+	"fmt"
+)
+
 type Dict struct {
 	values map[Primitive]Primitive
 }
@@ -48,7 +52,7 @@ func (d Dict) Set(ix, value Primitive) (Primitive, error) {
 func (d Dict) Get(ix Primitive) (Primitive, error) {
 	p, ok := d.values[ix]
 	if !ok {
-
+		return nil, fmt.Errorf("%s: key not found", ix)
 	}
 	return p, nil
 }
