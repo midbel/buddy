@@ -70,6 +70,17 @@ const (
 	DivAssign
 	Mod
 	ModAssign
+	Lshift
+	LshiftAssign
+	Rshift
+	RshiftAssign
+	BinAnd
+	BinAndAssign
+	BinOr
+	BinOrAssign
+	BinXor
+	BinXorAssign
+	BinNot
 	Lt
 	Le
 	Gt
@@ -163,6 +174,28 @@ func (t Token) String() string {
 		return "<modulo-assign>"
 	case Pow:
 		return "<power>"
+	case Lshift:
+		return "<left-shift>"
+	case LshiftAssign:
+		return "<left-shift-assign>"
+	case Rshift:
+		return "<right-shift>"
+	case RshiftAssign:
+		return "<right-shift-assign>"
+	case BinAnd:
+		return "<binary-and>"
+	case BinAndAssign:
+		return "<binary-and-assign>"
+	case BinOr:
+		return "<binary-or>"
+	case BinOrAssign:
+		return "<binary-or-assign>"
+	case BinXor:
+		return "<binary-xor>"
+	case BinXorAssign:
+		return "<binary-xor-assign>"
+	case BinNot:
+		return "<binary-not>"
 	case Lt:
 		return "<lt>"
 	case Le:

@@ -119,20 +119,32 @@ func (s *Scanner) scanOperator(tok *Token) {
 	switch s.char {
 	case dot:
 		tok.Type = Dot
+	case caret:
+		tok.Type = BinXor
+		if s.peek() == equal {
+			tok.Type = BinXorAssign
+			s.read()
+		}
+	case tilde:
+		tok.Type = BinNot
 	case ampersand:
-		if s.peek() != ampersand {
-			tok.Type = Invalid
-			break
+		tok.Type = BinAnd
+		if k := s.peek(); k == equal {
+			tok.Type = BinAndAssign
+			s.read()
+		} else if k == ampersand {
+			tok.Type = And
+			s.read()
 		}
-		s.read()
-		tok.Type = And
 	case pipe:
-		if s.peek() != pipe {
-			tok.Type = Invalid
-			break
+		tok.Type = BinOr
+		if k := s.peek(); k == equal {
+			tok.Type = BinOrAssign
+			s.read()
+		} else if k == pipe {
+			tok.Type = Or
+			s.read()
 		}
-		s.read()
-		tok.Type = Or
 	case bang:
 		tok.Type = Not
 		if s.peek() == equal {
@@ -147,15 +159,27 @@ func (s *Scanner) scanOperator(tok *Token) {
 		}
 	case langle:
 		tok.Type = Lt
-		if s.peek() == equal {
+		if k := s.peek(); k == equal {
 			tok.Type = Le
 			s.read()
+		} else if k == langle {
+			tok.Type = Lshift
+			s.read()
+			if s.char == equal {
+				tok.Type = LshiftAssign
+			}
 		}
 	case rangle:
 		tok.Type = Gt
-		if s.peek() == equal {
+		if k := s.peek(); k == equal {
 			tok.Type = Ge
 			s.read()
+		} else if k == rangle {
+			tok.Type = Rshift
+			s.read()
+			if s.char == equal {
+				tok.Type == RshiftAssign
+			}
 		}
 	case comma:
 		tok.Type = Comma
@@ -308,10 +332,14 @@ const (
 	rangle          = '>'
 	ampersand       = '&'
 	pipe            = '|'
+	caret           = '^'
+	tilde           = '~'
 )
 
 func isOperator(r rune) bool {
 	switch r {
+	case caret:
+	case tilde:
 	case plus:
 	case minus:
 	case star:
