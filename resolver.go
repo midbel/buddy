@@ -7,7 +7,7 @@ import (
 	"github.com/midbel/buddy/types"
 )
 
-var modPaths = []string{".", "./modules/"}
+var ImportPaths = []string{".", "./modules/"}
 
 const LimitRecurse = 1 << 10
 
@@ -25,10 +25,14 @@ func NewResolver() *Resolver {
 
 func ResolveEnv(env *types.Environ) *Resolver {
 	return &Resolver{
-		paths:   append([]string{}, modPaths...),
+		paths:   append([]string{}, ImportPaths...),
 		Environ: env,
 		symbols: make(map[string]Expression),
 	}
+}
+
+func (r *Resolver) Load(names []string, alias string) error {
+	return fmt.Errorf("import module: not yet implemented")
 }
 
 func (r *Resolver) Lookup(name string) (Callable, error) {

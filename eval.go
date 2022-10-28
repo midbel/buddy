@@ -28,18 +28,18 @@ func EvalEnv(r io.Reader, env *types.Environ) (types.Primitive, error) {
 }
 
 func Execute(expr Expression, env *types.Environ) (types.Primitive, error) {
-	resolv := ResolveEnv(env)
+	res := ResolveEnv(env)
 	if s, ok := expr.(script); ok {
 		var err error
 		for k, e := range s.symbols {
-			s.symbols[k], err = traverse(e, resolv, visitors)
+			s.symbols[k], err = traverse(e, res, visitors)
 			if err != nil {
 				return nil, err
 			}
 		}
-		resolv.symbols = s.symbols
+		res.symbols = s.symbols
 	}
-	return execute(expr, resolv)
+	return execute(expr, res)
 }
 
 func execute(expr Expression, env *Resolver) (types.Primitive, error) {
@@ -304,7 +304,11 @@ func evalPath(pat path, env *Resolver) (types.Primitive, error) {
 }
 
 func evalModule(mod module, env *Resolver) (types.Primitive, error) {
-	return nil, fmt.Errorf("not yet implemented")
+	if mod.alias == "" {
+		mod.alias = slices.Lst(mod.ident)
+	}
+	err := env.Load(mod.ident, mod.alias)
+	return nil, err
 }
 
 func evalArray(arr array, env *Resolver) (types.Primitive, error) {
