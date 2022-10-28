@@ -18,7 +18,7 @@ func CreateDict() Primitive {
 func (d Dict) String() string {
 	var (
 		str strings.Builder
-		ix int
+		ix  int
 	)
 	str.WriteString("{")
 	for k, v := range d.values {
