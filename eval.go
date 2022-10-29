@@ -148,11 +148,15 @@ func evalUnary(u unary, env *Resolver) (types.Primitive, error) {
 	case Sub:
 		cal, ok := res.(types.Calculable)
 		if !ok {
-			return nil, fmt.Errorf("%w: value can not be reversed", types.ErrOperation)
+			return nil, fmt.Errorf("%w: rev operator can not be applied on %s", types.ErrOperation, res)
 		}
 		return cal.Rev()
 	case BinNot:
-		return nil, nil
+		cal, ok := res.(types.BinaryCalculable)
+		if !ok {
+			return nil, fmt.Errorf("%w: binary not operator can not be applied on %s", types.ErrOperation, res)
+		}
+		return cal.Bnot(), nil
 	default:
 		return nil, fmt.Errorf("unsupported unary operator")
 	}
