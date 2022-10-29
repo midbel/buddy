@@ -81,6 +81,20 @@ func printAST(w io.Writer, e Expression, level int) {
 		if e.alt != nil {
 			printAST(w, e.alt, level+1)
 		}
+	case listcomp:
+		fmt.Fprintf(w, "%slistcomp", prefix)
+		fmt.Fprintln(w)
+		printAST(w, e.body, level+1)
+		for i := range e.list {
+			printAST(w, e.list[i], level+1)
+		}
+	case compitem:
+		fmt.Fprintf(w, "%scompitem(%s)", prefix, e.ident)
+		fmt.Fprintln(w)
+		printAST(w, e.iter, level+1)
+		for i := range e.cdt {
+			printAST(w, e.cdt[i], level+1)
+		}
 	case foreach:
 		fmt.Fprintf(w, "%sforeach(%s)", prefix, e.ident)
 		fmt.Fprintln(w)

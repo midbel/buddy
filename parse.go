@@ -229,6 +229,10 @@ func (p *parser) parseKeyword() (Expression, error) {
 	}
 }
 
+func (p *parser) parseFor() (Expression, error) {
+	return nil, nil
+}
+
 func (p *parser) parseForeach() (Expression, error) {
 	p.next()
 	if p.curr.Type != Lparen {
@@ -686,6 +690,54 @@ func (p *parser) parseIndex(left Expression) (Expression, error) {
 	return ix, nil
 }
 
+func (p *parser) parseListcomp(left Expression) (Expression, error) {
+	cmp := listcomp{
+		body: left,
+	}
+	p.next()
+	for p.curr.Type != Rsquare && !p.done() {
+		var item compitem
+		if p.curr.Type != Ident {
+			return nil, p.parseError("expected identifier")
+		}
+		item.ident = p.curr.Literal
+		p.next()
+		if p.curr.Type != Keyword && p.curr.Literal != kwIn {
+			return nil, p.parseError("expected 'in' keyword")
+		}
+		p.next()
+		expr, err := p.parse(powLowest)
+		if err != nil {
+			return nil, err
+		}
+		item.iter = expr
+		for p.curr.Type == Keyword && p.curr.Literal == kwIf {
+			p.next()
+			expr, err := p.parse(powLowest)
+			if err != nil {
+				return nil, err
+			}
+			item.cdt = append(item.cdt, expr)
+		}
+		switch p.curr.Type {
+		case Keyword:
+			if p.curr.Literal != kwFor {
+				return nil, fmt.Errorf("expected 'for' keyword")
+			}
+			p.next()
+		case Rsquare:
+		default:
+			return nil, fmt.Errorf("expected ']' or 'for' keyword")
+		}
+		cmp.list = append(cmp.list, item)
+	}
+	if p.curr.Type != Rsquare {
+		return nil, fmt.Errorf("expected ']")
+	}
+	p.next()
+	return cmp, nil
+}
+
 func (p *parser) parseArray() (Expression, error) {
 	p.next()
 	var arr array
@@ -693,6 +745,9 @@ func (p *parser) parseArray() (Expression, error) {
 		e, err := p.parse(powLowest)
 		if err != nil {
 			return nil, err
+		}
+		if len(arr.list) == 0 && p.curr.Type == Keyword && p.curr.Literal == kwFor {
+			return p.parseListcomp(e)
 		}
 		arr.list = append(arr.list, e)
 		switch p.curr.Type {

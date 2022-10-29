@@ -126,6 +126,56 @@ func (i Int) Pow(other Primitive) (Primitive, error) {
 	return i, nil
 }
 
+func (i Int) Lshift(other Primitive) (Primitive, error) {
+	x, ok := other.(Int)
+	if !ok {
+		return nil, incompatibleType("left-shift", i, other)
+	}
+	i.value <<= x.value
+	return i, nil
+}
+
+func (i Int) Rshift(other Primitive) (Primitive, error) {
+	x, ok := other.(Int)
+	if !ok {
+		return nil, incompatibleType("right-shift", i, other)
+	}
+	i.value >>= x.value
+	return i, nil
+}
+
+func (i Int) And(other Primitive) (Primitive, error) {
+	x, ok := other.(Int)
+	if !ok {
+		return nil, incompatibleType("binary-and", i, other)
+	}
+	i.value &= x.value
+	return i, nil
+}
+
+func (i Int) Or(other Primitive) (Primitive, error) {
+	x, ok := other.(Int)
+	if !ok {
+		return nil, incompatibleType("binary-or", i, other)
+	}
+	i.value |= x.value
+	return i, nil
+}
+
+func (i Int) Xor(other Primitive) (Primitive, error) {
+	x, ok := other.(Int)
+	if !ok {
+		return nil, incompatibleType("binary-xor", i, other)
+	}
+	i.value ^= x.value
+	return i, nil
+}
+
+func (i Int) Bnot() Primitive {
+	i.value = ^i.value
+	return i
+}
+
 func (i Int) True() bool {
 	return i.value != 0
 }

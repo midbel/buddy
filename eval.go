@@ -84,6 +84,8 @@ func eval(expr Expression, env *Resolver) (types.Primitive, error) {
 		return types.CreateBool(e.value), nil
 	case variable:
 		return env.Resolve(e.ident)
+	case listcomp:
+		return evalListcomp(e, env)
 	case unary:
 		res, err = evalUnary(e, env)
 	case binary:
@@ -355,6 +357,58 @@ func evalImport(mod module, env *Resolver) (types.Primitive, error) {
 	}
 	err := env.Load(mod.ident, mod.alias, symbols)
 	return nil, err
+}
+
+func evalListcomp(cmp listcomp, env *Resolver) (types.Primitive, error) {
+	var (
+		arr      []types.Primitive
+		evalItem func([]compitem) error
+		old      = env.Environ
+	)
+	env.Environ = types.EnclosedEnv(old)
+	defer func() {
+		env.Environ = old
+	}()
+
+	evalItem = func(list []compitem) error {
+		if len(list) == 0 {
+			return nil
+		}
+		curr := slices.Fst(list)
+		it, err := eval(curr.iter, env)
+		if err != nil {
+			return err
+		}
+		iter, ok := it.(types.Iterable)
+		if !ok {
+			return fmt.Errorf("can not iterate over %T", it)
+		}
+		err = iter.Iter(func(p types.Primitive) error {
+			env.Define(curr.ident, p)
+			for i := range curr.cdt {
+				res, err := eval(curr.cdt[i], env)
+				if err != nil {
+					return err
+				}
+				if !res.True() {
+					return nil
+				}
+			}
+			if len(list) > 1 {
+				return evalItem(slices.Rest(list))
+			}
+			res, err := eval(cmp.body, env)
+			if err == nil {
+				arr = append(arr, res)
+			}
+			return err
+		})
+		return err
+	}
+	if err := evalItem(cmp.list); err != nil {
+		return nil, err
+	}
+	return types.CreateArray(arr), nil
 }
 
 func evalArray(arr array, env *Resolver) (types.Primitive, error) {

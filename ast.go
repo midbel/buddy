@@ -248,21 +248,22 @@ func (_ script) isPrimitive() bool {
 	return false
 }
 
+type compitem struct {
+	ident string
+	iter  Expression
+	cdt   []Expression
+}
+
+func (_ compitem) isPrimitive() bool {
+	return false
+}
+
 type listcomp struct {
-	loop Expression
-	cdt  Expression
+	body Expression
+	list []compitem
 }
 
 func (c listcomp) isPrimitive() bool {
-	return true
-}
-
-type dictcomp struct {
-	loop Expression
-	cdt  Expression
-}
-
-func (c dictcomp) isPrimitive() bool {
 	return true
 }
 
