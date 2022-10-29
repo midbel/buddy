@@ -11,9 +11,9 @@ type Expression interface {
 func createPrimitive(res interface{}) (Expression, error) {
 	switch r := res.(type) {
 	case int64:
-		return createNumber(float64(r)), nil
+		return createInteger(r), nil
 	case float64:
-		return createNumber(r), nil
+		return createDouble(r), nil
 	case bool:
 		return createBoolean(r), nil
 	case string:
@@ -107,17 +107,31 @@ func (_ boolean) isPrimitive() bool {
 	return true
 }
 
-type number struct {
+type integer struct {
+	value int64
+}
+
+func createInteger(n int64) integer {
+	return integer{
+		value: n,
+	}
+}
+
+func (_ integer) isPrimitive() bool {
+	return true
+}
+
+type double struct {
 	value float64
 }
 
-func createNumber(f float64) number {
-	return number{
+func createDouble(f float64) double {
+	return double{
 		value: f,
 	}
 }
 
-func (_ number) isPrimitive() bool {
+func (_ double) isPrimitive() bool {
 	return true
 }
 
@@ -232,6 +246,24 @@ type script struct {
 
 func (_ script) isPrimitive() bool {
 	return false
+}
+
+type listcomp struct {
+	loop Expression
+	cdt  Expression
+}
+
+func (c listcomp) isPrimitive() bool {
+	return true
+}
+
+type dictcomp struct {
+	loop Expression
+	cdt  Expression
+}
+
+func (c dictcomp) isPrimitive() bool {
+	return true
 }
 
 type foreach struct {

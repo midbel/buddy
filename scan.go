@@ -105,13 +105,14 @@ func (s *Scanner) scanNumber(tok *Token) {
 	for isDigit(s.char) {
 		s.read()
 	}
+	tok.Type = Integer
 	if s.char == dot {
 		s.read()
 		for isDigit(s.char) {
 			s.read()
 		}
+		tok.Type = Double
 	}
-	tok.Type = Number
 	tok.Literal = string(s.input[pos:s.curr])
 }
 

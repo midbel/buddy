@@ -76,8 +76,10 @@ func eval(expr Expression, env *Resolver) (types.Primitive, error) {
 		return evalPath(e, env)
 	case literal:
 		return types.CreateString(e.str), nil
-	case number:
+	case double:
 		return types.CreateFloat(e.value), nil
+	case integer:
+		return types.CreateInt(e.value), nil
 	case boolean:
 		return types.CreateBool(e.value), nil
 	case variable:
@@ -148,6 +150,7 @@ func evalUnary(u unary, env *Resolver) (types.Primitive, error) {
 		}
 		return cal.Rev()
 	case BinNot:
+		return nil, nil
 	default:
 		return nil, fmt.Errorf("unsupported unary operator")
 	}
@@ -449,11 +452,14 @@ func assignIndex(idx index, value types.Primitive, env *Resolver) (types.Primiti
 type binaryFunc func(types.Primitive, types.Primitive, rune) (types.Primitive, error)
 
 func doBinaryArithmetic(left, right types.Primitive, op rune) (types.Primitive, error) {
-	bin, ok := left.(types.BinCalculable)
-	if !ok {
-		return nil, fmt.Errorf("%w: values can not be calculated", types.ErrOperation)
-	}
-	var err error
+	// bin, ok := left.(types.BinCalculable)
+	// if !ok {
+	// 	return nil, fmt.Errorf("%w: values can not be calculated", types.ErrOperation)
+	// }
+	var (
+		err error
+		bin types.Primitive
+	)
 	switch op {
 	case Lshift:
 	case Rshift:
@@ -463,6 +469,7 @@ func doBinaryArithmetic(left, right types.Primitive, op rune) (types.Primitive, 
 	default:
 		err = fmt.Errorf("unsupported binary operator")
 	}
+	return bin, err
 }
 
 func doArithmetic(left, right types.Primitive, op rune) (types.Primitive, error) {

@@ -91,7 +91,8 @@ func Parse(r io.Reader) (Expression, error) {
 		BinNot:  p.parsePrefix,
 		Sub:     p.parsePrefix,
 		Not:     p.parsePrefix,
-		Number:  p.parsePrefix,
+		Double:  p.parsePrefix,
+		Integer: p.parsePrefix,
 		Boolean: p.parsePrefix,
 		Literal: p.parsePrefix,
 		Ident:   p.parsePrefix,
@@ -762,12 +763,19 @@ func (p *parser) parsePrefix() (Expression, error) {
 	case Literal:
 		expr = createLiteral(p.curr.Literal)
 		p.next()
-	case Number:
+	case Double:
 		n, err := strconv.ParseFloat(p.curr.Literal, 64)
 		if err != nil {
 			return nil, err
 		}
-		expr = createNumber(n)
+		expr = createDouble(n)
+		p.next()
+	case Integer:
+		n, err := strconv.ParseInt(p.curr.Literal, 0, 64)
+		if err != nil {
+			return nil, err
+		}
+		expr = createInteger(n)
 		p.next()
 	case Ident:
 		expr = createVariable(p.curr.Literal)

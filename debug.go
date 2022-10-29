@@ -138,12 +138,15 @@ func printAST(w io.Writer, e Expression, level int) {
 	case boolean:
 		fmt.Fprintf(w, "%sboolean(%t)", prefix, e.value)
 		fmt.Fprintln(w)
-	case number:
+	case double:
 		if math.Round(e.value) == e.value {
-			fmt.Fprintf(w, "%snumber(%d)", prefix, int(e.value))
+			fmt.Fprintf(w, "%sdouble(%d)", prefix, int(e.value))
 		} else {
-			fmt.Fprintf(w, "%snumber(%f)", prefix, e.value)
+			fmt.Fprintf(w, "%sdouble(%f)", prefix, e.value)
 		}
+		fmt.Fprintln(w)
+	case integer:
+		fmt.Fprintf(w, "%sinteger(%d)", prefix, e.value)
 		fmt.Fprintln(w)
 	case literal:
 		fmt.Fprintf(w, "%sliteral(%s)", prefix, e.str)

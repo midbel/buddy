@@ -48,7 +48,8 @@ const (
 	Ident
 	Boolean
 	Variable
-	Number
+	Integer
+	Double
 	Comment
 	Comma
 	Dot
@@ -120,8 +121,10 @@ func (t Token) String() string {
 		prefix = "invalid"
 	case Literal:
 		prefix = "literal"
-	case Number:
-		prefix = "number"
+	case Integer:
+		prefix = "integer"
+	case Double:
+		prefix = "double"
 	case Comment:
 		prefix = "comment"
 	case Keyword:
