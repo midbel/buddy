@@ -178,7 +178,7 @@ func (s *Scanner) scanOperator(tok *Token) {
 			tok.Type = Rshift
 			s.read()
 			if s.char == equal {
-				tok.Type == RshiftAssign
+				tok.Type = RshiftAssign
 			}
 		}
 	case comma:

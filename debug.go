@@ -212,6 +212,18 @@ func binaryOp(op rune) string {
 		return "gt"
 	case Ge:
 		return "ge"
+	case BinOr:
+		return "binary-or"
+	case BinAnd:
+		return "binary-and"
+	case BinXor:
+		return "binary-xor"
+	case BinNot:
+		return "binary-not"
+	case Lshift:
+		return "left-shift"
+	case Rshift:
+		return "right-shift"
 	}
 	return "?"
 }

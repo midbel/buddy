@@ -147,6 +147,7 @@ func evalUnary(u unary, env *Resolver) (types.Primitive, error) {
 			return nil, fmt.Errorf("%w: value can not be reversed", types.ErrOperation)
 		}
 		return cal.Rev()
+	case BinNot:
 	default:
 		return nil, fmt.Errorf("unsupported unary operator")
 	}
@@ -164,6 +165,8 @@ func evalBinary(b binary, env *Resolver) (types.Primitive, error) {
 	var do binaryFunc
 	if isArithmetic(b.op) {
 		do = doArithmetic
+	} else if isBinArithmetic(b.op) {
+		do = doBinaryArithmetic
 	} else if isComparison(b.op) {
 		do = doComparison
 	} else if isRelational(b.op) {
@@ -445,6 +448,23 @@ func assignIndex(idx index, value types.Primitive, env *Resolver) (types.Primiti
 
 type binaryFunc func(types.Primitive, types.Primitive, rune) (types.Primitive, error)
 
+func doBinaryArithmetic(left, right types.Primitive, op rune) (types.Primitive, error) {
+	bin, ok := left.(types.BinCalculable)
+	if !ok {
+		return nil, fmt.Errorf("%w: values can not be calculated", types.ErrOperation)
+	}
+	var err error
+	switch op {
+	case Lshift:
+	case Rshift:
+	case BinAnd:
+	case BinOr:
+	case BinXor:
+	default:
+		err = fmt.Errorf("unsupported binary operator")
+	}
+}
+
 func doArithmetic(left, right types.Primitive, op rune) (types.Primitive, error) {
 	cal, ok := left.(types.Calculable)
 	if !ok {
@@ -504,6 +524,15 @@ func doRelational(left, right types.Primitive, op rune) (types.Primitive, error)
 
 func isRelational(op rune) bool {
 	return op == And || op == Or
+}
+
+func isBinArithmetic(op rune) bool {
+	switch op {
+	case Lshift, Rshift, BinAnd, BinOr, BinXor:
+		return true
+	default:
+		return false
+	}
 }
 
 func isArithmetic(op rune) bool {

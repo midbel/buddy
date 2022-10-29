@@ -14,7 +14,9 @@ const (
 	powLowest   = iota
 	powAssign   // =
 	powTernary  // ?:
+	powBinary   // &, |, ^, ~
 	powRelation // &&, ||
+	powShift    // <<, >>
 	powEqual    // ==, !=
 	powCompare  // <, <=, >, >=
 	powAdd      // +, -
@@ -36,30 +38,40 @@ func (p powerMap) Get(r rune) int {
 }
 
 var powers = powerMap{
-	Add:       powAdd,
-	Sub:       powAdd,
-	Mul:       powMul,
-	Div:       powMul,
-	Mod:       powMul,
-	Pow:       powMul,
-	Assign:    powAssign,
-	AddAssign: powAssign,
-	SubAssign: powAssign,
-	MulAssign: powAssign,
-	DivAssign: powAssign,
-	ModAssign: powAssign,
-	Lparen:    powCall,
-	Ternary:   powTernary,
-	And:       powRelation,
-	Or:        powRelation,
-	Eq:        powEqual,
-	Ne:        powEqual,
-	Lt:        powCompare,
-	Le:        powCompare,
-	Gt:        powCompare,
-	Ge:        powCompare,
-	Lsquare:   powIndex,
-	Dot:       powDot,
+	Lshift:       powShift,
+	Rshift:       powShift,
+	BinAnd:       powBinary,
+	BinOr:        powBinary,
+	BinXor:       powBinary,
+	Add:          powAdd,
+	Sub:          powAdd,
+	Mul:          powMul,
+	Div:          powMul,
+	Mod:          powMul,
+	Pow:          powMul,
+	Assign:       powAssign,
+	AddAssign:    powAssign,
+	SubAssign:    powAssign,
+	MulAssign:    powAssign,
+	DivAssign:    powAssign,
+	ModAssign:    powAssign,
+	RshiftAssign: powAssign,
+	LshiftAssign: powAssign,
+	BinAndAssign: powAssign,
+	BinOrAssign:  powAssign,
+	BinXorAssign: powAssign,
+	Lparen:       powCall,
+	Ternary:      powTernary,
+	And:          powRelation,
+	Or:           powRelation,
+	Eq:           powEqual,
+	Ne:           powEqual,
+	Lt:           powCompare,
+	Le:           powCompare,
+	Gt:           powCompare,
+	Ge:           powCompare,
+	Lsquare:      powIndex,
+	Dot:          powDot,
 }
 
 type parser struct {
@@ -76,6 +88,7 @@ func Parse(r io.Reader) (Expression, error) {
 		scan: Scan(r),
 	}
 	p.prefix = map[rune]func() (Expression, error){
+		BinNot:  p.parsePrefix,
 		Sub:     p.parsePrefix,
 		Not:     p.parsePrefix,
 		Number:  p.parsePrefix,
@@ -88,30 +101,40 @@ func Parse(r io.Reader) (Expression, error) {
 		Keyword: p.parseKeyword,
 	}
 	p.infix = map[rune]func(Expression) (Expression, error){
-		Add:       p.parseInfix,
-		Sub:       p.parseInfix,
-		Mul:       p.parseInfix,
-		Div:       p.parseInfix,
-		Mod:       p.parseInfix,
-		Pow:       p.parseInfix,
-		Assign:    p.parseAssign,
-		Dot:       p.parsePath,
-		AddAssign: p.parseAssign,
-		SubAssign: p.parseAssign,
-		DivAssign: p.parseAssign,
-		MulAssign: p.parseAssign,
-		ModAssign: p.parseAssign,
-		Lparen:    p.parseCall,
-		Lsquare:   p.parseIndex,
-		Ternary:   p.parseTernary,
-		Eq:        p.parseInfix,
-		Ne:        p.parseInfix,
-		Lt:        p.parseInfix,
-		Le:        p.parseInfix,
-		Gt:        p.parseInfix,
-		Ge:        p.parseInfix,
-		And:       p.parseInfix,
-		Or:        p.parseInfix,
+		Add:          p.parseInfix,
+		Sub:          p.parseInfix,
+		Mul:          p.parseInfix,
+		Div:          p.parseInfix,
+		Mod:          p.parseInfix,
+		Pow:          p.parseInfix,
+		Lshift:       p.parseInfix,
+		Rshift:       p.parseInfix,
+		BinAnd:       p.parseInfix,
+		BinOr:        p.parseInfix,
+		BinXor:       p.parseInfix,
+		Assign:       p.parseAssign,
+		Dot:          p.parsePath,
+		AddAssign:    p.parseAssign,
+		SubAssign:    p.parseAssign,
+		DivAssign:    p.parseAssign,
+		MulAssign:    p.parseAssign,
+		ModAssign:    p.parseAssign,
+		BinAndAssign: p.parseAssign,
+		BinOrAssign:  p.parseAssign,
+		BinXorAssign: p.parseAssign,
+		LshiftAssign: p.parseAssign,
+		RshiftAssign: p.parseAssign,
+		Lparen:       p.parseCall,
+		Lsquare:      p.parseIndex,
+		Ternary:      p.parseTernary,
+		Eq:           p.parseInfix,
+		Ne:           p.parseInfix,
+		Lt:           p.parseInfix,
+		Le:           p.parseInfix,
+		Gt:           p.parseInfix,
+		Ge:           p.parseInfix,
+		And:          p.parseInfix,
+		Or:           p.parseInfix,
 	}
 	p.next()
 	p.next()
@@ -588,6 +611,16 @@ func (p *parser) parseAssign(left Expression) (Expression, error) {
 			op = Div
 		case ModAssign:
 			op = Mod
+		case BinAndAssign:
+			op = BinAnd
+		case BinOrAssign:
+			op = BinOr
+		case BinXorAssign:
+			op = BinXor
+		case LshiftAssign:
+			op = Lshift
+		case RshiftAssign:
+			op = Rshift
 		default:
 			return nil, p.parseError("compound assignment operator not recognized")
 		}
@@ -714,7 +747,7 @@ func (p *parser) parseDict() (Expression, error) {
 func (p *parser) parsePrefix() (Expression, error) {
 	var expr Expression
 	switch p.curr.Type {
-	case Sub, Not:
+	case Sub, Not, BinNot:
 		op := p.curr.Type
 		p.next()
 
