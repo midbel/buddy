@@ -690,12 +690,10 @@ func (p *parser) parseIndex(left Expression) (Expression, error) {
 	return ix, nil
 }
 
-func (p *parser) parseListcomp(left Expression) (Expression, error) {
-	cmp := listcomp{
-		body: left,
-	}
+func (p *parser) parseCompitem(until rune) ([]compitem, error) {
+	var list []compitem
 	p.next()
-	for p.curr.Type != Rsquare && !p.done() {
+	for p.curr.Type != until && !p.done() {
 		var item compitem
 		if p.curr.Type != Ident {
 			return nil, p.parseError("expected identifier")
@@ -725,17 +723,28 @@ func (p *parser) parseListcomp(left Expression) (Expression, error) {
 				return nil, fmt.Errorf("expected 'for' keyword")
 			}
 			p.next()
-		case Rsquare:
+		case until:
 		default:
 			return nil, fmt.Errorf("expected ']' or 'for' keyword")
 		}
-		cmp.list = append(cmp.list, item)
+		list = append(list, item)
 	}
-	if p.curr.Type != Rsquare {
+	if p.curr.Type != until {
 		return nil, fmt.Errorf("expected ']")
 	}
 	p.next()
-	return cmp, nil
+	return list, nil
+}
+
+func (p *parser) parseListcomp(left Expression) (Expression, error) {
+	cmp := listcomp{
+		body: left,
+	}
+	list, err := p.parseCompitem(Rsquare)
+	if err == nil {
+		cmp.list = list
+	}
+	return cmp, err
 }
 
 func (p *parser) parseArray() (Expression, error) {
@@ -766,6 +775,18 @@ func (p *parser) parseArray() (Expression, error) {
 	return arr, nil
 }
 
+func (p *parser) parseDictcomp(key, val Expression) (Expression, error) {
+	cmp := dictcomp{
+		key: key,
+		val: val,
+	}
+	list, err := p.parseCompitem(Rcurly)
+	if err == nil {
+		cmp.list = list
+	}
+	return cmp, err
+}
+
 func (p *parser) parseDict() (Expression, error) {
 	p.next()
 	var d dict
@@ -782,6 +803,9 @@ func (p *parser) parseDict() (Expression, error) {
 		v, err := p.parse(powLowest)
 		if err != nil {
 			return nil, err
+		}
+		if len(d.list) == 0 && p.curr.Type == Keyword && p.curr.Literal == kwFor {
+			return p.parseDictcomp(k, v)
 		}
 		d.list[k] = v
 		switch p.curr.Type {

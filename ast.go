@@ -258,13 +258,23 @@ func (_ compitem) isPrimitive() bool {
 	return false
 }
 
+type dictcomp struct {
+	key Expression
+	val Expression
+	list []compitem
+}
+
+func (_ dictcomp) isPrimitive() bool {
+	return false
+}
+
 type listcomp struct {
 	body Expression
 	list []compitem
 }
 
 func (c listcomp) isPrimitive() bool {
-	return true
+	return false
 }
 
 type foreach struct {

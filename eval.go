@@ -86,6 +86,8 @@ func eval(expr Expression, env *Resolver) (types.Primitive, error) {
 		return env.Resolve(e.ident)
 	case listcomp:
 		return evalListcomp(e, env)
+	case dictcomp:
+		return evalDictcomp(e, env)
 	case unary:
 		res, err = evalUnary(e, env)
 	case binary:
@@ -361,6 +363,10 @@ func evalImport(mod module, env *Resolver) (types.Primitive, error) {
 	}
 	err := env.Load(mod.ident, mod.alias, symbols)
 	return nil, err
+}
+
+func evalDictcomp(cmp dictcomp, env *Resolver) (types.Primitive, error) {
+	return nil, nil
 }
 
 func evalListcomp(cmp listcomp, env *Resolver) (types.Primitive, error) {
