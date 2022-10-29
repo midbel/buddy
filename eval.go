@@ -506,24 +506,26 @@ func assignIndex(idx index, value types.Primitive, env *Resolver) (types.Primiti
 type binaryFunc func(types.Primitive, types.Primitive, rune) (types.Primitive, error)
 
 func doBinaryArithmetic(left, right types.Primitive, op rune) (types.Primitive, error) {
-	// bin, ok := left.(types.BinCalculable)
-	// if !ok {
-	// 	return nil, fmt.Errorf("%w: values can not be calculated", types.ErrOperation)
-	// }
-	var (
-		err error
-		bin types.Primitive
-	)
+	bin, ok := left.(types.BinaryCalculable)
+	if !ok {
+		return nil, fmt.Errorf("%w: values can not be calculated", types.ErrOperation)
+	}
+	var err error
 	switch op {
 	case Lshift:
+		left, err = bin.Lshift(right)
 	case Rshift:
+		left, err = bin.Rshift(right)
 	case BinAnd:
+		left, err = bin.And(right)
 	case BinOr:
+		left, err = bin.Or(right)
 	case BinXor:
+		left, err = bin.Xor(right)
 	default:
 		err = fmt.Errorf("unsupported binary operator")
 	}
-	return bin, err
+	return left, err
 }
 
 func doArithmetic(left, right types.Primitive, op rune) (types.Primitive, error) {

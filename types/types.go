@@ -43,6 +43,15 @@ type Calculable interface {
 	Pow(Primitive) (Primitive, error)
 }
 
+type BinaryCalculable interface {
+	Lshift(Primitive) (Primitive, error)
+	Rshift(Primitive) (Primitive, error)
+	And(Primitive) (Primitive, error)
+	Or(Primitive) (Primitive, error)
+	Xor(Primitive) (Primitive, error)
+	Bnot() Primitive
+}
+
 type Primitive interface {
 	fmt.Stringer
 	Raw() any
