@@ -99,18 +99,40 @@ func (s *Scanner) scanIdent(tok *Token) {
 }
 
 func (s *Scanner) scanNumber(tok *Token) {
-	defer s.unread()
-
-	pos := s.curr
-	for isDigit(s.char) {
-		s.read()
+	scan := func(accept func(rune) bool) {
+		for accept(s.char) {
+			s.read()
+			if s.char == underscore && accept(s.char) {
+				s.read()
+			}
+		}
 	}
+	defer s.unread()
+	pos := s.curr
 	tok.Type = Integer
+	if s.char == '0' {
+		var accept func(rune) bool
+		switch s.peek() {
+		case 'b':
+			accept = isBin
+		case 'o':
+			accept = isOctal
+		case 'x':
+			accept = isHex
+		default:
+		}
+		if accept != nil {
+			s.read()
+			s.read()
+			scan(accept)
+			tok.Literal = string(s.input[pos:s.curr])
+			return
+		}
+	}
+	scan(isDigit)
 	if s.char == dot {
 		s.read()
-		for isDigit(s.char) {
-			s.read()
-		}
+		scan(isDigit)
 		tok.Type = Double
 	}
 	tok.Literal = string(s.input[pos:s.curr])
@@ -403,4 +425,16 @@ func isBlank(r rune) bool {
 
 func isNL(r rune) bool {
 	return r == nl
+}
+
+func isBin(r rune) bool {
+	return r == '0' || r == '1'
+}
+
+func isOctal(r rune) bool {
+	return r >= '0' && r <= '7'
+}
+
+func isHex(r rune) bool {
+	return isDigit(r) || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')
 }
