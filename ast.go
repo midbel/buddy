@@ -259,8 +259,8 @@ func (_ compitem) isPrimitive() bool {
 }
 
 type dictcomp struct {
-	key Expression
-	val Expression
+	key  Expression
+	val  Expression
 	list []compitem
 }
 

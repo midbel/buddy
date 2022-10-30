@@ -366,7 +366,60 @@ func evalImport(mod module, env *Resolver) (types.Primitive, error) {
 }
 
 func evalDictcomp(cmp dictcomp, env *Resolver) (types.Primitive, error) {
-	return nil, nil
+	var (
+		arr      = types.CreateDict()
+		evalItem func([]compitem) error
+		old      = env.Environ
+	)
+	env.Environ = types.EnclosedEnv(old)
+	defer func() {
+		env.Environ = old
+	}()
+
+	evalItem = func(list []compitem) error {
+		if len(list) == 0 {
+			return nil
+		}
+		curr := slices.Fst(list)
+		it, err := eval(curr.iter, env)
+		if err != nil {
+			return err
+		}
+		iter, ok := it.(types.Iterable)
+		if !ok {
+			return fmt.Errorf("can not iterate over %T", it)
+		}
+		err = iter.Iter(func(p types.Primitive) error {
+			env.Define(curr.ident, p)
+			for i := range curr.cdt {
+				res, err := eval(curr.cdt[i], env)
+				if err != nil {
+					return err
+				}
+				if !res.True() {
+					return nil
+				}
+			}
+			if len(list) > 1 {
+				return evalItem(slices.Rest(list))
+			}
+			key, err := eval(cmp.key, env)
+			if err != nil {
+				return err
+			}
+			val, err := eval(cmp.val, env)
+			if err != nil {
+				return err
+			}
+			arr.(types.Dict).Set(key, val)
+			return nil
+		})
+		return err
+	}
+	if err := evalItem(cmp.list); err != nil {
+		return nil, err
+	}
+	return arr, nil
 }
 
 func evalListcomp(cmp listcomp, env *Resolver) (types.Primitive, error) {
