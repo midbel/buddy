@@ -258,8 +258,13 @@ func (p *parser) parseFor() (Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		if e, ok := loop.init.(variable); ok {
+		switch e := loop.init.(type) {
+		case variable:
 			return p.parseForeach(e.ident)
+		case assign:
+		case walrus:
+		default:
+			return nil, p.parseError("illegal expression! assignment expected")
 		}
 	}
 	if p.curr.Type != EOL {
