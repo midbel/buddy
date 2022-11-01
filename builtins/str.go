@@ -25,6 +25,14 @@ var strmod = Module{
 			},
 			Call: runLower,
 		},
+		"format": {
+			Name: "format",
+			Variadic: true,
+			Params: []Parameter{
+				createPositional("pattern"),
+			},
+			Call: runFormat,
+		},
 		"index": {
 			Name: "index",
 			Params: []Parameter{
@@ -44,9 +52,25 @@ var strmod = Module{
 	},
 }
 
+func runFormat(args ...types.Primitive) (types.Primitive, error) {
+	if len(args) < 1 {
+		return nil, fmt.Errorf("no enough argument given")
+	}
+	str, ok := slices.Fst(args).Raw().(string)
+	if !ok {
+		return nil, fmt.Errorf("incompatible type: string expected")
+	}
+	var list []any
+	for _, a := range slices.Rest(args) {
+		list = append(list, a)
+	}
+	str = fmt.Sprintf(str, list...)
+	return types.CreateString(str), nil
+}
+
 func runLower(args ...types.Primitive) (types.Primitive, error) {
 	if len(args) < 1 {
-		return nil, fmt.Errorf("printf: no enough argument given")
+		return nil, fmt.Errorf("no enough argument given")
 	}
 	str, ok := slices.Fst(args).Raw().(string)
 	if !ok {
@@ -58,7 +82,7 @@ func runLower(args ...types.Primitive) (types.Primitive, error) {
 
 func runUpper(args ...types.Primitive) (types.Primitive, error) {
 	if len(args) < 1 {
-		return nil, fmt.Errorf("printf: no enough argument given")
+		return nil, fmt.Errorf("no enough argument given")
 	}
 	str, ok := slices.Fst(args).Raw().(string)
 	if !ok {

@@ -5,15 +5,15 @@ import (
 )
 
 func init() {
-	visitors = []visitFunc{
-		trackVariables,
-		trackImport,
-		trackCyclic,
-		trackLoop,
-		replaceFunctionArgs,
-		inlineFunctionCall,
-		trackValue,
-	}
+	// visitors = []visitFunc{
+	// 	trackVariables,
+	// 	trackImport,
+	// 	trackCyclic,
+	// 	trackLoop,
+	// 	replaceFunctionArgs,
+	// 	inlineFunctionCall,
+	// 	trackValue,
+	// }
 }
 
 type visitFunc func(Expression, *Resolver) (Expression, error)
