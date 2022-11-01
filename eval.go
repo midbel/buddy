@@ -94,6 +94,8 @@ func eval(expr Expression, env *Resolver) (types.Primitive, error) {
 		res, err = evalUnary(e, env)
 	case binary:
 		res, err = evalBinary(e, env)
+	case walrus:
+		res, err = evalWalrus(e, env)
 	case assign:
 		res, err = evalAssign(e, env)
 	case test:
@@ -310,6 +312,22 @@ func evalWhile(w while, env *Resolver) (types.Primitive, error) {
 	return res, nil
 }
 
+func evalWalrus(w walrus, env *Resolver) (types.Primitive, error) {
+	res, err := eval(w.right, env)
+	if err != nil {
+		return nil, err
+	}
+	switch a := w.ident.(type) {
+	case variable:
+		env.Define(a.ident, res)
+	case index:
+		return assignIndex(a, res, env)
+	default:
+		return nil, fmt.Errorf("can not assign to %T", a)
+	}
+	return res, nil
+}
+
 func evalAssign(a assign, env *Resolver) (types.Primitive, error) {
 	res, err := eval(a.right, env)
 	if err != nil {
@@ -319,11 +337,12 @@ func evalAssign(a assign, env *Resolver) (types.Primitive, error) {
 	case variable:
 		env.Define(a.ident, res)
 	case index:
-		return assignIndex(a, res, env)
+		_, err = assignIndex(a, res, env)
+		return nil, err
 	default:
 		return nil, fmt.Errorf("can not assign to %T", a)
 	}
-	return res, nil
+	return nil, nil
 }
 
 func evalCall(c call, env *Resolver) (types.Primitive, error) {

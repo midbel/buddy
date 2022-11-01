@@ -202,6 +202,14 @@ func (_ function) isPrimitive() bool {
 	return false
 }
 
+type walrus struct {
+	assign
+}
+
+func (w walrus) isPrimitive() bool {
+	return false
+}
+
 type assign struct {
 	ident Expression
 	right Expression

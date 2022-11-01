@@ -49,6 +49,7 @@ var powers = powerMap{
 	Div:          powMul,
 	Mod:          powMul,
 	Pow:          powMul,
+	Walrus:       powAssign,
 	Assign:       powAssign,
 	AddAssign:    powAssign,
 	SubAssign:    powAssign,
@@ -113,6 +114,7 @@ func Parse(r io.Reader) (Expression, error) {
 		BinAnd:       p.parseInfix,
 		BinOr:        p.parseInfix,
 		BinXor:       p.parseInfix,
+		Walrus:       p.parseWalrus,
 		Assign:       p.parseAssign,
 		Dot:          p.parsePath,
 		AddAssign:    p.parseAssign,
@@ -635,6 +637,27 @@ func (p *parser) parsePath(left Expression) (Expression, error) {
 	}
 	a.right = right
 	return a, nil
+}
+
+func (p *parser) parseWalrus(left Expression) (Expression, error) {
+	switch left.(type) {
+	case variable, index:
+	default:
+		return nil, fmt.Errorf("unexpected assignment operator")
+	}
+	p.next()
+	right, err := p.parse(powLowest)
+	if err != nil {
+		return nil, err
+	}
+	ass := assign{
+		ident: left,
+		right: right,
+	}
+	expr := walrus{
+		assign: ass,
+	}
+	return expr, nil
 }
 
 func (p *parser) parseAssign(left Expression) (Expression, error) {

@@ -91,6 +91,7 @@ const (
 	Eq
 	Ne
 	Assign
+	Walrus
 	Ternary
 	Not
 	And
@@ -219,6 +220,8 @@ func (t Token) String() string {
 		return "<or>"
 	case Assign:
 		return "<assign>"
+	case Walrus:
+		return "<walrus>"
 	case Ternary:
 		return "<ternary>"
 	case Not:

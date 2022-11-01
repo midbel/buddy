@@ -265,6 +265,10 @@ func (s *Scanner) scanOperator(tok *Token) {
 		tok.Type = Ternary
 	case colon:
 		tok.Type = Colon
+		if s.peek() == equal {
+			tok.Type = Walrus
+			s.read()
+		}
 	default:
 		tok.Type = Invalid
 	}
