@@ -139,6 +139,17 @@ func evalScript(s script, env *Resolver) (types.Primitive, error) {
 	return res, err
 }
 
+func evalAssert(ass Assert, env *Resolver) (types.Primitive, error) {
+	res, err := eval(ass.expr, env)
+	if err != nil {
+		return nil, err
+	}
+	if !res.True() {
+		return nil, types.ErrAssert
+	}
+	return res, nil
+}
+
 func evalUnary(u unary, env *Resolver) (types.Primitive, error) {
 	res, err := eval(u.right, env)
 	if err != nil {

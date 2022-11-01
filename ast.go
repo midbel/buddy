@@ -23,6 +23,14 @@ func createPrimitive(res interface{}) (Expression, error) {
 	}
 }
 
+type assert struct {
+	expr Expression
+}
+
+func (_ assert) isPrimitive() bool {
+	return false
+}
+
 type link struct {
 	Callable
 }

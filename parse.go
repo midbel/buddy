@@ -224,9 +224,21 @@ func (p *parser) parseKeyword() (Expression, error) {
 		return p.parseFrom()
 	case kwFor:
 		return p.parseForeach()
+	case kwAssert:
+		return p.parseAssert()
 	default:
 		return nil, p.parseError("keyword not recognized")
 	}
+}
+
+func (p *parser) parseAssert() (Expression, error) {
+	p.next()
+	var (
+		ass assert
+		err error
+	)
+	ass.expr, err = p.parse(powLowest)
+	return ass, err
 }
 
 func (p *parser) parseFor() (Expression, error) {

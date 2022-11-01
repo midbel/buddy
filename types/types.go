@@ -9,6 +9,7 @@ var (
 	ErrIncompatible = errors.New("incompatible type")
 	ErrOperation    = errors.New("unsupported operation")
 	ErrZero         = errors.New("division by zero")
+	ErrAssert       = errors.New("assertion failed")
 )
 
 type Sizeable interface {
