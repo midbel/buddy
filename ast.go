@@ -285,6 +285,16 @@ func (c listcomp) isPrimitive() bool {
 	return false
 }
 
+type forloop struct {
+	init Expression
+	incr Expression
+	while
+}
+
+func (f forloop) isPrimitive() bool {
+	return false
+}
+
 type foreach struct {
 	ident string
 	iter  Expression

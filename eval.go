@@ -88,6 +88,8 @@ func eval(expr Expression, env *Resolver) (types.Primitive, error) {
 		return evalListcomp(e, env)
 	case dictcomp:
 		return evalDictcomp(e, env)
+	case assert:
+		res, err = evalAssert(e, env)
 	case unary:
 		res, err = evalUnary(e, env)
 	case binary:
@@ -98,6 +100,8 @@ func eval(expr Expression, env *Resolver) (types.Primitive, error) {
 		res, err = evalTest(e, env)
 	case while:
 		res, err = evalWhile(e, env)
+	case forloop:
+		res, err = evalFor(e, env)
 	case foreach:
 		res, err = evalForeach(e, env)
 	case returned:
@@ -139,7 +143,7 @@ func evalScript(s script, env *Resolver) (types.Primitive, error) {
 	return res, err
 }
 
-func evalAssert(ass Assert, env *Resolver) (types.Primitive, error) {
+func evalAssert(ass assert, env *Resolver) (types.Primitive, error) {
 	res, err := eval(ass.expr, env)
 	if err != nil {
 		return nil, err
@@ -238,17 +242,58 @@ func evalForeach(f foreach, env *Resolver) (types.Primitive, error) {
 	return res, err
 }
 
+func evalFor(f forloop, env *Resolver) (types.Primitive, error) {
+	if f.init != nil {
+		_, err := eval(f.init, env)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var (
+		res types.Primitive
+		err error
+	)
+	for {
+		if f.cdt != nil {
+			tmp, err := eval(f.cdt, env)
+			if err != nil {
+				return nil, err
+			}
+			if !tmp.True() {
+				break
+			}
+		}
+		res, err = eval(f.body, env)
+		if err != nil {
+			if errors.Is(err, errBreak) {
+				break
+			}
+			if errors.Is(err, errContinue) {
+				continue
+			}
+			return nil, err
+		}
+		if f.incr != nil {
+			_, err = eval(f.incr, env)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return res, err
+}
+
 func evalWhile(w while, env *Resolver) (types.Primitive, error) {
 	var (
 		res types.Primitive
 		err error
 	)
 	for {
-		res, err = eval(w.cdt, env)
-		if err != nil {
-			return nil, err
+		tmp, err1 := eval(w.cdt, env)
+		if err1 != nil {
+			return nil, err1
 		}
-		if !res.True() {
+		if !tmp.True() {
 			break
 		}
 		res, err = eval(w.body, env)

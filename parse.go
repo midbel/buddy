@@ -223,7 +223,7 @@ func (p *parser) parseKeyword() (Expression, error) {
 	case kwFrom:
 		return p.parseFrom()
 	case kwFor:
-		return p.parseForeach()
+		return p.parseFor()
 	case kwAssert:
 		return p.parseAssert()
 	default:
@@ -242,24 +242,61 @@ func (p *parser) parseAssert() (Expression, error) {
 }
 
 func (p *parser) parseFor() (Expression, error) {
-	return nil, nil
-}
-
-func (p *parser) parseForeach() (Expression, error) {
 	p.next()
 	if p.curr.Type != Lparen {
 		return nil, p.parseError("expected '('")
 	}
 	p.next()
 	var (
+		loop forloop
+		err  error
+	)
+	if p.curr.Type != EOL {
+		loop.init, err = p.parse(powLowest)
+		if err != nil {
+			return nil, err
+		}
+		if e, ok := loop.init.(variable); ok {
+			return p.parseForeach(e.ident)
+		}
+	}
+	if p.curr.Type != EOL {
+		return nil, p.parseError("expected ';'")
+	}
+	p.next()
+	if p.curr.Type != EOL {
+		loop.cdt, err = p.parse(powLowest)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if p.curr.Type != EOL {
+		return nil, p.parseError("expected ';'")
+	}
+	p.next()
+	if p.curr.Type != Rparen {
+		loop.incr, err = p.parse(powLowest)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if p.curr.Type != Rparen {
+		return nil, p.parseError("expected ')'")
+	}
+	p.next()
+	loop.body, err = p.parseBlock()
+	if p.curr.Type != EOL && p.curr.Type != EOF {
+		return nil, p.parseError("expected newline or ';'")
+	}
+	return loop, nil
+}
+
+func (p *parser) parseForeach(ident string) (Expression, error) {
+	var (
 		expr foreach
 		err  error
 	)
-	if p.curr.Type != Ident {
-		return nil, p.parseError("expected identifier")
-	}
-	expr.ident = p.curr.Literal
-	p.next()
+	expr.ident = ident
 	if p.curr.Type != Keyword && p.curr.Literal != kwIn {
 		return nil, p.parseError("expected 'in' keyword")
 	}

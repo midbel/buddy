@@ -59,6 +59,10 @@ func printAST(w io.Writer, e Expression, level int) {
 		for i := range e.args {
 			printAST(w, e.args[i], level+1)
 		}
+	case assert:
+		fmt.Fprintf(w, "%sassert", prefix)
+		fmt.Fprintln(w)
+		printAST(w, e.expr, level+1)
 	case binary:
 		fmt.Fprintf(w, "%sbinary(%s)", prefix, binaryOp(e.op))
 		fmt.Fprintln(w)
@@ -104,6 +108,19 @@ func printAST(w io.Writer, e Expression, level int) {
 		fmt.Fprintf(w, "%swhile", prefix)
 		fmt.Fprintln(w)
 		printAST(w, e.cdt, level+1)
+		printAST(w, e.body, level+1)
+	case forloop:
+		fmt.Fprintf(w, "%sfor", prefix)
+		fmt.Fprintln(w)
+		if e.init != nil {
+			printAST(w, e.init, level+1)
+		}
+		if e.cdt != nil {
+			printAST(w, e.cdt, level+1)
+		}
+		if e.incr != nil {
+			printAST(w, e.incr, level+1)
+		}
 		printAST(w, e.body, level+1)
 	case returned:
 		fmt.Fprintf(w, "%sreturn", prefix)
