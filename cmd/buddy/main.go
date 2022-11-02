@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -9,7 +10,33 @@ import (
 
 	"github.com/midbel/buddy"
 	"github.com/midbel/buddy/builtins"
+	"github.com/midbel/buddy/types"
 )
+
+func main() {
+	flag.Parse()
+	r, err := os.Open(flag.Arg(0))
+	if err != nil {
+		interactive(os.Stdin)
+		return
+	}
+	defer r.Close()
+	if err := execute(r); err != nil {
+		os.Exit(1)
+	}
+}
+
+func execute(r io.Reader) error {
+	res, err := buddy.Eval(r)
+	if err != nil {
+		buddy.PrintError(os.Stderr, err)
+		return err
+	}
+	if res != nil {
+		fmt.Printf("%+v\n", res)
+	}
+	return nil
+}
 
 const (
 	in  = "\x1b[1;97min [%3d]:\x1b[0m "
@@ -17,15 +44,11 @@ const (
 	nok = "\x1b[1;91mout[%3d]:\x1b[0m %s"
 )
 
-func main() {
-	repl()
-}
-
-func repl() {
+func interactive(r io.Reader) {
 	var (
 		cmd  int
-		scan = bufio.NewScanner(os.Stdin)
-		env  = buddy.EmptyEnv()
+		scan = bufio.NewScanner(r)
+		env  = types.EmptyEnv()
 	)
 	cmd++
 	io.WriteString(os.Stdout, fmt.Sprintf(in, cmd))
@@ -59,5 +82,5 @@ func repl() {
 		cmd++
 		io.WriteString(os.Stdout, fmt.Sprintf(in, cmd))
 	}
-	fmt.Fprintln(os.Stdout)
+	fmt.Fprintln(os.Stdout)	
 }
