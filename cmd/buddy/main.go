@@ -82,5 +82,5 @@ func interactive(r io.Reader) {
 		cmd++
 		io.WriteString(os.Stdout, fmt.Sprintf(in, cmd))
 	}
-	fmt.Fprintln(os.Stdout)	
+	fmt.Fprintln(os.Stdout)
 }

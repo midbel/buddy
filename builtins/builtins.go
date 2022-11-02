@@ -1,6 +1,7 @@
 package builtins
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -8,6 +9,8 @@ import (
 	"github.com/midbel/buddy/types"
 	"github.com/midbel/slices"
 )
+
+var ErrType = errors.New("type error")
 
 type Module struct {
 	Name     string
@@ -88,6 +91,7 @@ var Modules = []Module{
 	iomod,
 	strmod,
 	defmod,
+	arrmod,
 }
 
 var defmod = Module{
@@ -275,4 +279,27 @@ func runBool(args ...types.Primitive) (types.Primitive, error) {
 		return nil, fmt.Errorf("invalid number of arguments")
 	}
 	return types.CreateBool(slices.Fst(args).True()), nil
+}
+
+func runLen(args ...types.Primitive) (types.Primitive, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("len: no enough argument given")
+	}
+	siz, ok := slices.Fst(args).(types.Sizeable)
+	if !ok {
+		return nil, fmt.Errorf("can not get length from %s", siz)
+	}
+	return types.CreateInt(int64(siz.Len())), nil
+}
+
+func typeError(got, want types.Primitive) error {
+	src, err := types.Type(got)
+	if err != nil {
+		src = "unknown"
+	}
+	dst, err := types.Type(want)
+	if err != nil {
+		dst = "unknown"
+	}
+	return fmt.Errorf("%w: expected %s, got %s", ErrType, dst, src)
 }

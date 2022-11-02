@@ -26,7 +26,7 @@ var strmod = Module{
 			Call: runLower,
 		},
 		"format": {
-			Name: "format",
+			Name:     "format",
 			Variadic: true,
 			Params: []Parameter{
 				createPositional("pattern"),
