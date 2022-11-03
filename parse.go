@@ -1009,22 +1009,20 @@ func (p *parser) is(r rune) bool {
 }
 
 func (p *parser) expect(r rune, msg string) error {
-	var err error
 	if !p.is(r) {
-		err = p.parseError(msg)
+		return p.parseError(msg)
 	}
-	return err
+	return nil
 }
 
 func (p *parser) expectKW(kw, msg string) error {
-	var err error
 	if err = p.expect(token.Keyword, msg); err != nil {
 		return err
 	}
 	if p.curr.Literal != kw {
-		err = p.parseError(msg)
+		return p.parseError(msg)
 	}
-	return err
+	return nil
 }
 
 func (p *parser) eol() error {
