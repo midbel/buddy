@@ -76,6 +76,7 @@ var powers = powerMap{
 }
 
 type parser struct {
+	file string
 	scan *Scanner
 	curr Token
 	peek Token
@@ -87,6 +88,9 @@ type parser struct {
 func Parse(r io.Reader) (Expression, error) {
 	p := parser{
 		scan: Scan(r),
+	}
+	if n, ok := r.(interface{ Name() string }); ok {
+		p.file = n.Name()
 	}
 	p.prefix = map[rune]func() (Expression, error){
 		BinNot:  p.parsePrefix,
@@ -1050,6 +1054,7 @@ func (p *parser) next() {
 func (p *parser) parseError(message string) error {
 	return ParseError{
 		Token:   p.curr,
+		File:    p.file,
 		Line:    p.scan.getLine(p.curr.Position),
 		Message: message,
 	}

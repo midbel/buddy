@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 )
 
@@ -21,12 +22,18 @@ func PrintError(w io.Writer, err error) {
 
 type ParseError struct {
 	Token
+	File    string
 	Line    string
 	Message string
 }
 
 func (e ParseError) Error() string {
-	return fmt.Sprintf("%s: %s", e.Position, e.Message)
+	if e.File == "" {
+		e.File = "<input>"
+	} else {
+		e.File = filepath.Base(e.File)
+	}
+	return fmt.Sprintf("%s %s: %s", e.File, e.Position, e.Message)
 }
 
 type errorsList []error
@@ -53,7 +60,7 @@ func printParseError(w io.Writer, err ParseError) {
 
 	line := strings.ReplaceAll(err.Line, "\t", " ")
 
-	fmt.Fprintf(w, "\x1b[1;91mparsing error at %s:\x1b[0m", err.Position)
+	fmt.Fprintf(w, "\x1b[1;91m%s: parsing error at %s:\x1b[0m", err.File, err.Position)
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, line)
 	fmt.Fprintf(w, "%s%s \x1b[1;91m%s\x1b[0m", space, tilde, err.Message)

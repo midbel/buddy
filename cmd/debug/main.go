@@ -20,7 +20,7 @@ func main() {
 
 	err = buddy.Debug(os.Stdout, r, *visit)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		buddy.PrintError(os.Stderr, err)
 		os.Exit(1)
 	}
 }
