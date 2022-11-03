@@ -59,6 +59,13 @@ type symbol struct {
 	alias string
 }
 
+func createSymbol(ident string) symbol {
+	return symbol{
+		ident: ident,
+		alias: ident,
+	}
+}
+
 func (_ symbol) isPrimitive() bool {
 	return false
 }
@@ -213,6 +220,13 @@ func (w walrus) isPrimitive() bool {
 type assign struct {
 	ident Expression
 	right Expression
+}
+
+func createAssign(ident, expr Expression) assign {
+	return assign{
+		ident: ident,
+		right: expr,
+	}
 }
 
 func (_ assign) isPrimitive() bool {

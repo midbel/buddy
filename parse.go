@@ -167,20 +167,12 @@ func (p *parser) Parse() (Expression, error) {
 }
 
 func (p *parser) parse(pow int) (Expression, error) {
-	fn, ok := p.prefix[p.curr.Type]
-	if !ok {
-		return nil, p.parseError("unary operator not recognized")
-	}
-	left, err := fn()
+	left, err := p.getPrefixExpr()
 	if err != nil {
 		return nil, err
 	}
-	for (p.curr.Type != EOL || p.curr.Type != EOF) && pow < powers.Get(p.curr.Type) {
-		fn, ok := p.infix[p.curr.Type]
-		if !ok {
-			return nil, p.parseError("binary operator not recognized")
-		}
-		left, err = fn(left)
+	for (!p.is(EOL) || !p.is(EOF)) && pow < powers.Get(p.curr.Type) {
+		left, err = p.getInfixExpr(left)
 		if err != nil {
 			return nil, err
 		}
@@ -189,10 +181,7 @@ func (p *parser) parse(pow int) (Expression, error) {
 }
 
 func (p *parser) parseSpecial(s *script) (bool, error) {
-	if p.curr.Type != Keyword {
-		return false, nil
-	}
-	if p.curr.Literal != kwDef {
+	if err := p.expectKW(kwDef, ""); err != nil {
 		return false, nil
 	}
 	var (
@@ -248,7 +237,7 @@ func (p *parser) parseFor() (Expression, error) {
 		loop forloop
 		err  error
 	)
-	if p.curr.Type != EOL {
+	if !p.is(EOL) {
 		loop.init, err = p.parse(powLowest)
 		if err != nil {
 			return nil, err
@@ -266,7 +255,7 @@ func (p *parser) parseFor() (Expression, error) {
 		return nil, err
 	}
 	p.next()
-	if p.curr.Type != EOL {
+	if !p.is(EOL) {
 		loop.cdt, err = p.parse(powLowest)
 		if err != nil {
 			return nil, err
@@ -276,17 +265,14 @@ func (p *parser) parseFor() (Expression, error) {
 		return nil, err
 	}
 	p.next()
-	if p.curr.Type != Lcurly {
+	if !p.is(Lcurly) {
 		loop.incr, err = p.parse(powLowest)
 		if err != nil {
 			return nil, err
 		}
 	}
-	if err := p.expect(Lcurly, "expected '{'"); err != nil {
-		return nil, err
-	}
 	loop.body, err = p.parseBlock()
-	if p.curr.Type != EOL && p.curr.Type != EOF {
+	if !p.is(EOL) && !p.is(EOF) {
 		return nil, p.parseError("expected newline or ';'")
 	}
 	return loop, nil
@@ -298,18 +284,15 @@ func (p *parser) parseForeach(ident string) (Expression, error) {
 		err  error
 	)
 	expr.ident = ident
-	if p.curr.Type != Keyword && p.curr.Literal != kwIn {
-		return nil, p.parseError("expected 'in' keyword")
+	if err := p.expectKW(kwIn, "expected 'in' keyword"); err != nil {
+		return nil, err
 	}
 	p.next()
 	if expr.iter, err = p.parse(powLowest); err != nil {
 		return nil, err
 	}
-	if err := p.expect(Lcurly, "expected '{'"); err != nil {
-		return nil, err
-	}
 	expr.body, err = p.parseBlock()
-	if p.curr.Type != EOL && p.curr.Type != EOF {
+	if !p.is(EOL) && !p.is(EOF) {
 		return nil, p.parseError("expected newline or ';'")
 	}
 	return expr, nil
@@ -318,13 +301,13 @@ func (p *parser) parseForeach(ident string) (Expression, error) {
 func (p *parser) parseFrom() (Expression, error) {
 	p.next()
 	var mod module
-	for p.curr.Type == Ident {
+	for p.is(Ident) {
 		mod.ident = append(mod.ident, p.curr.Literal)
 		p.next()
 		switch p.curr.Type {
 		case Dot:
 			p.next()
-		case Keyword, EOL, EOF:
+		case Keyword:
 		default:
 			return nil, p.parseError("expected keyword, newline, '.' or ';'")
 		}
@@ -332,20 +315,17 @@ func (p *parser) parseFrom() (Expression, error) {
 	if len(mod.ident) == 0 {
 		return nil, p.parseError("no identifier given for import")
 	}
-	if p.curr.Type != Keyword || p.curr.Literal != kwImport {
-		return nil, p.parseError("expected 'import' keyword")
+	if err := p.expectKW(kwImport, "expected 'import' keyword"); err != nil {
+		return nil, err
 	}
 	p.next()
-	for p.curr.Type != EOL && !p.done() {
+	for !p.is(EOL) && !p.done() {
 		if err := p.expect(Ident, "expected identifier"); err != nil {
 			return nil, err
 		}
-		s := symbol{
-			ident: p.curr.Literal,
-			alias: p.curr.Literal,
-		}
+		s := createSymbol(p.curr.Literal)
 		p.next()
-		if p.curr.Type == Keyword && p.curr.Literal == kwAs {
+		if err := p.expectKW(kwAs, ""); err == nil {
 			p.next()
 			if err := p.expect(Ident, "expected identifier"); err != nil {
 				return nil, err
@@ -356,6 +336,9 @@ func (p *parser) parseFrom() (Expression, error) {
 		mod.symbols = append(mod.symbols, s)
 		switch p.curr.Type {
 		case Comma:
+			if p.peekIs(EOL) || p.peekIs(EOF) {
+				return nil, p.parseError("unexpected ',' before end of line")
+			}
 			p.next()
 		case EOL, EOF:
 		default:
@@ -368,7 +351,7 @@ func (p *parser) parseFrom() (Expression, error) {
 func (p *parser) parseImport() (Expression, error) {
 	p.next()
 	var mod module
-	for p.curr.Type == Ident {
+	for p.is(Ident) {
 		mod.ident = append(mod.ident, p.curr.Literal)
 		p.next()
 		switch p.curr.Type {
@@ -383,7 +366,7 @@ func (p *parser) parseImport() (Expression, error) {
 		return nil, p.parseError("no identifier given for import")
 	}
 	mod.alias = slices.Lst(mod.ident)
-	if p.curr.Type == Keyword && p.curr.Literal == kwAs {
+	if err := p.expectKW(kwAs, ""); err == nil {
 		p.next()
 		if err := p.expect(Ident, "expected identifier"); err != nil {
 			return nil, err
@@ -401,8 +384,8 @@ func (p *parser) parseParameters() ([]Expression, error) {
 	p.next()
 
 	var list []Expression
-	for p.curr.Type != Rparen && !p.done() {
-		if p.peek.Type == Assign {
+	for !p.is(Rparen) && !p.done() {
+		if p.peekIs(Assign) {
 			break
 		}
 		if err := p.expect(Ident, "expected identifier"); err != nil {
@@ -413,7 +396,7 @@ func (p *parser) parseParameters() ([]Expression, error) {
 		p.next()
 		switch p.curr.Type {
 		case Comma:
-			if p.peek.Type == Rparen {
+			if p.peekIs(Rparen) {
 				return nil, p.parseError("unexpected ',' before ')")
 			}
 			p.next()
@@ -422,7 +405,7 @@ func (p *parser) parseParameters() ([]Expression, error) {
 			return nil, p.parseError("expected ')' or ','")
 		}
 	}
-	for p.curr.Type != Rparen && !p.done() {
+	for !p.is(Rparen) && !p.done() {
 		if err := p.expect(Ident, "expected identifier"); err != nil {
 			return nil, err
 		}
@@ -440,7 +423,7 @@ func (p *parser) parseParameters() ([]Expression, error) {
 		list = append(list, a)
 		switch p.curr.Type {
 		case Comma:
-			if p.peek.Type == Rparen {
+			if p.peekIs(Rparen) {
 				return nil, p.parseError("unexpected ',' before ')")
 			}
 			p.next()
@@ -484,7 +467,7 @@ func (p *parser) parseBlock() (Expression, error) {
 	}
 	p.next()
 	var list []Expression
-	for p.curr.Type != Rcurly && !p.done() {
+	for !p.is(Rcurly) && !p.done() {
 		e, err := p.parse(powLowest)
 		if err != nil {
 			return nil, err
@@ -522,7 +505,7 @@ func (p *parser) parseIf() (Expression, error) {
 	if err != nil {
 		return nil, err
 	}
-	if p.curr.Type == Keyword && p.curr.Literal == kwElse {
+	if err := p.expectKW(kwElse, ""); err == nil {
 		p.next()
 		switch p.curr.Type {
 		case Lcurly:
@@ -532,7 +515,7 @@ func (p *parser) parseIf() (Expression, error) {
 		default:
 		}
 	}
-	if p.curr.Type != EOL && p.curr.Type != EOF {
+	if !p.is(EOL) && !p.is(EOF) {
 		return nil, p.parseError("expected newline or ';'")
 	}
 	return expr, nil
@@ -553,7 +536,7 @@ func (p *parser) parseWhile() (Expression, error) {
 	if err != nil {
 		return nil, err
 	}
-	if p.curr.Type != EOL && p.curr.Type != EOF {
+	if !p.is(EOL) && !p.is(EOF) {
 		return nil, p.parseError("expected newline or ';'")
 	}
 	return expr, nil
@@ -561,7 +544,7 @@ func (p *parser) parseWhile() (Expression, error) {
 
 func (p *parser) parseReturn() (Expression, error) {
 	p.next()
-	if p.curr.Type == EOL || p.curr.Type == EOF {
+	if p.is(EOL) || p.is(EOF) {
 		return returned{}, nil
 	}
 	right, err := p.parse(powLowest)
@@ -632,12 +615,8 @@ func (p *parser) parseWalrus(left Expression) (Expression, error) {
 	if err != nil {
 		return nil, err
 	}
-	ass := assign{
-		ident: left,
-		right: right,
-	}
 	expr := walrus{
-		assign: ass,
+		assign: createAssign(left, right),
 	}
 	return expr, nil
 }
@@ -654,10 +633,7 @@ func (p *parser) parseAssign(left Expression) (Expression, error) {
 	if err != nil {
 		return nil, err
 	}
-	expr := assign{
-		ident: left,
-		right: right,
-	}
+	expr := createAssign(left, right)
 	if op != Assign {
 		switch op {
 		case AddAssign:
@@ -717,7 +693,7 @@ func (p *parser) parseIndex(left Expression) (Expression, error) {
 		arr: left,
 	}
 	p.next()
-	for p.curr.Type != Rsquare {
+	for !p.is(Rsquare) && !p.done() {
 		expr, err := p.parse(powLowest)
 		if err != nil {
 			return nil, err
@@ -725,7 +701,7 @@ func (p *parser) parseIndex(left Expression) (Expression, error) {
 		ix.list = append(ix.list, expr)
 		switch p.curr.Type {
 		case Comma:
-			if p.peek.Type == Rsquare {
+			if p.peekIs(Rsquare) {
 				return nil, p.parseError("unexpected ',' before ')")
 			}
 			p.next()
@@ -747,15 +723,15 @@ func (p *parser) parseIndex(left Expression) (Expression, error) {
 func (p *parser) parseCompitem(until rune) ([]compitem, error) {
 	var list []compitem
 	p.next()
-	for p.curr.Type != until && !p.done() {
+	for !p.is(until) && !p.done() {
 		var item compitem
 		if err := p.expect(Ident, "expected identifier"); err != nil {
 			return nil, err
 		}
 		item.ident = p.curr.Literal
 		p.next()
-		if p.curr.Type != Keyword && p.curr.Literal != kwIn {
-			return nil, p.parseError("expected 'in' keyword")
+		if err := p.expectKW(kwIn, "expected 'in' keyword"); err != nil {
+			return nil, err
 		}
 		p.next()
 		expr, err := p.parse(powLowest)
@@ -804,12 +780,12 @@ func (p *parser) parseListcomp(left Expression) (Expression, error) {
 func (p *parser) parseArray() (Expression, error) {
 	p.next()
 	var arr array
-	for p.curr.Type != Rsquare && !p.done() {
+	for !p.is(Rsquare) && !p.done() {
 		e, err := p.parse(powLowest)
 		if err != nil {
 			return nil, err
 		}
-		if len(arr.list) == 0 && p.curr.Type == Keyword && p.curr.Literal == kwFor {
+		if err := p.expectKW(kwFor, ""); len(arr.list) == 0 && err == nil {
 			return p.parseListcomp(e)
 		}
 		arr.list = append(arr.list, e)
@@ -845,7 +821,7 @@ func (p *parser) parseDict() (Expression, error) {
 	p.next()
 	var d dict
 	d.list = make(map[Expression]Expression)
-	for p.curr.Type != Rcurly && !p.done() {
+	for !p.is(Rcurly) && !p.done() {
 		k, err := p.parse(powLowest)
 		if err != nil {
 			return nil, err
@@ -858,7 +834,7 @@ func (p *parser) parseDict() (Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		if len(d.list) == 0 && p.curr.Type == Keyword && p.curr.Literal == kwFor {
+		if err := p.expectKW(kwFor, ""); len(d.list) == 0 && err == nil {
 			return p.parseDictcomp(k, v)
 		}
 		d.list[k] = v
@@ -935,7 +911,7 @@ func (p *parser) parseCall(left Expression) (Expression, error) {
 	expr := call{
 		ident: v.ident,
 	}
-	for p.curr.Type != Rparen && !p.done() {
+	for !p.is(Rparen) && !p.done() {
 		if p.peek.Type == Assign {
 			break
 		}
@@ -946,7 +922,7 @@ func (p *parser) parseCall(left Expression) (Expression, error) {
 		expr.args = append(expr.args, e)
 		switch p.curr.Type {
 		case Comma:
-			if p.peek.Type == Rparen {
+			if p.peekIs(Rparen) {
 				return nil, p.parseError("unexpected ',' before ')")
 			}
 			p.next()
@@ -955,7 +931,7 @@ func (p *parser) parseCall(left Expression) (Expression, error) {
 			return nil, p.parseError("expected ','")
 		}
 	}
-	for p.curr.Type != Rparen && !p.done() {
+	for !p.is(Rparen) && !p.done() {
 		if err := p.expect(Ident, "expected identifier"); err != nil {
 			return nil, err
 		}
@@ -973,7 +949,7 @@ func (p *parser) parseCall(left Expression) (Expression, error) {
 		expr.args = append(expr.args, a)
 		switch p.curr.Type {
 		case Comma:
-			if p.peek.Type == Rparen {
+			if p.peekIs(Rparen) {
 				return nil, p.parseError("unexpected ',' before ')")
 			}
 			p.next()
@@ -1002,11 +978,47 @@ func (p *parser) parseGroup() (Expression, error) {
 	return expr, nil
 }
 
-func (p *parser) expect(r rune, msg string) error {
-	if p.curr.Type != r {
-		return p.parseError(msg)
+func (p *parser) getPrefixExpr() (Expression, error) {
+	fn, ok := p.prefix[p.curr.Type]
+	if !ok {
+		return nil, p.parseError("unary operator not recognized")
 	}
-	return nil
+	return fn()
+}
+
+func (p *parser) getInfixExpr(left Expression) (Expression, error) {
+	fn, ok := p.infix[p.curr.Type]
+	if !ok {
+		return nil, p.parseError("binary operator not recognized")
+	}
+	return fn(left)
+}
+
+func (p *parser) peekIs(r rune) bool {
+	return p.peek.Type == r
+}
+
+func (p *parser) is(r rune) bool {
+	return p.curr.Type == r
+}
+
+func (p *parser) expect(r rune, msg string) error {
+	var err error
+	if !p.is(r) {
+		err = p.parseError(msg)
+	}
+	return err
+}
+
+func (p *parser) expectKW(kw, msg string) error {
+	var err error
+	if err = p.expect(Keyword, msg); err != nil {
+		return err
+	}
+	if p.curr.Literal != kw {
+		err = p.parseError(msg)
+	}
+	return err
 }
 
 func (p *parser) eol() error {
@@ -1021,13 +1033,13 @@ func (p *parser) eol() error {
 }
 
 func (p *parser) skip(r rune) {
-	for p.curr.Type == r {
+	for p.is(r) {
 		p.next()
 	}
 }
 
 func (p *parser) done() bool {
-	return p.curr.Type == EOF
+	return p.is(EOF)
 }
 
 func (p *parser) next() {
