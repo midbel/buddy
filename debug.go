@@ -5,6 +5,8 @@ import (
 	"io"
 	"math"
 	"strings"
+
+	"github.com/midbel/buddy/token"
 )
 
 func Debug(w io.Writer, r io.Reader, visit bool) error {
@@ -210,53 +212,55 @@ func printAST(w io.Writer, e Expression, level int) {
 
 func unaryOp(op rune) string {
 	switch op {
-	case Sub:
+	case token.Sub:
 		return "rev"
-	case Not:
+	case token.Not:
 		return "not"
+	case token.BinNot:
+		return "binary-not"
 	}
 	return "?"
 }
 
 func binaryOp(op rune) string {
 	switch op {
-	case Add:
+	case token.Add:
 		return "add"
-	case Sub:
+	case token.Sub:
 		return "sub"
-	case Div:
+	case token.Div:
 		return "div"
-	case Mod:
+	case token.Mod:
 		return "mod"
-	case Pow:
+	case token.Pow:
 		return "pow"
-	case And:
+	case token.And:
 		return "and"
-	case Or:
+	case token.Or:
 		return "or"
-	case Eq:
+	case token.Eq:
 		return "eq"
-	case Ne:
+	case token.Ne:
 		return "ne"
-	case Lt:
+	case token.Lt:
 		return "lt"
-	case Le:
+	case token.Le:
 		return "le"
-	case Gt:
+	case token.Gt:
 		return "gt"
-	case Ge:
+	case token.Ge:
 		return "ge"
-	case BinOr:
+	case token.BinOr:
 		return "binary-or"
-	case BinAnd:
+	case token.BinAnd:
 		return "binary-and"
-	case BinXor:
+	case token.BinXor:
 		return "binary-xor"
-	case BinNot:
+	case token.BinNot:
 		return "binary-not"
-	case Lshift:
+	case token.Lshift:
 		return "left-shift"
-	case Rshift:
+	case token.Rshift:
 		return "right-shift"
 	}
 	return "?"

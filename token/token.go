@@ -1,42 +1,42 @@
-package buddy
+package token
 
 import (
 	"fmt"
 )
 
 const (
-	kwIf       = "if"
-	kwElse     = "else"
-	kwWhile    = "while"
-	kwReturn   = "return"
-	kwDef      = "def"
-	kwTrue     = "true"
-	kwFalse    = "false"
-	kwBreak    = "break"
-	kwContinue = "continue"
-	kwImport   = "import"
-	kwFrom     = "from"
-	kwFor      = "for"
-	kwAs       = "as"
-	kwIn       = "in"
-	kwAssert   = "assert"
+	KwIf       = "if"
+	KwElse     = "else"
+	KwWhile    = "while"
+	KwReturn   = "return"
+	KwDef      = "def"
+	KwTrue     = "true"
+	KwFalse    = "false"
+	KwBreak    = "break"
+	KwContinue = "continue"
+	KwImport   = "import"
+	KwFrom     = "from"
+	KwFor      = "for"
+	KwAs       = "as"
+	KwIn       = "in"
+	KwAssert   = "assert"
 )
 
-func isKeyword(str string) bool {
+func IsKeyword(str string) bool {
 	switch str {
-	case kwDef:
-	case kwIf:
-	case kwElse:
-	case kwWhile:
-	case kwBreak:
-	case kwContinue:
-	case kwReturn:
-	case kwImport:
-	case kwFrom:
-	case kwAs:
-	case kwFor:
-	case kwIn:
-	case kwAssert:
+	case KwDef:
+	case KwIf:
+	case KwElse:
+	case KwWhile:
+	case KwBreak:
+	case KwContinue:
+	case KwReturn:
+	case KwImport:
+	case KwFrom:
+	case KwAs:
+	case KwFor:
+	case KwIn:
+	case KwAssert:
 	default:
 		return false
 	}

@@ -1,9 +1,11 @@
-package buddy
+package scan
 
 import (
 	"bytes"
 	"io"
 	"unicode/utf8"
+
+	"github.com/midbel/buddy/token"
 )
 
 type Scanner struct {
@@ -13,7 +15,7 @@ type Scanner struct {
 	next int
 	char rune
 
-	Position
+	token.Position
 	seen int
 }
 
@@ -26,7 +28,7 @@ func Scan(r io.Reader) *Scanner {
 	return &x
 }
 
-func (s *Scanner) getLine(pos Position) string {
+func (s *Scanner) CurrentLine(pos token.Position) string {
 	var start int
 	for i := 0; i < pos.Line-1; i++ {
 		x := bytes.IndexByte(s.input[start:], nl)
@@ -41,16 +43,16 @@ func (s *Scanner) getLine(pos Position) string {
 	return string(s.input[start:end])
 }
 
-func (s *Scanner) Scan() Token {
+func (s *Scanner) Scan() token.Token {
 	s.read()
 	if isBlank(s.char) {
 		s.skipBlank()
 		s.read()
 	}
-	var tok Token
+	var tok token.Token
 	tok.Position = s.Position
 	if s.done() {
-		tok.Type = EOF
+		tok.Type = token.EOF
 		return tok
 	}
 	switch {
@@ -64,41 +66,41 @@ func (s *Scanner) Scan() Token {
 		s.scanLiteral(&tok)
 	case isNL(s.char):
 		s.skipNL()
-		tok.Type = EOL
+		tok.Type = token.EOL
 	default:
-		tok.Type = Invalid
+		tok.Type = token.Invalid
 	}
 	return tok
 }
 
-func (s *Scanner) scanLiteral(tok *Token) {
+func (s *Scanner) scanLiteral(tok *token.Token) {
 	quote := s.char
 	s.read()
 	pos := s.curr
 	for s.char != quote && !s.done() {
 		s.read()
 	}
-	tok.Type = Literal
+	tok.Type = token.Literal
 	tok.Literal = string(s.input[pos:s.curr])
 }
 
-func (s *Scanner) scanIdent(tok *Token) {
+func (s *Scanner) scanIdent(tok *token.Token) {
 	defer s.unread()
 	pos := s.curr
 	for isAlpha(s.char) {
 		s.read()
 	}
-	tok.Type = Ident
+	tok.Type = token.Ident
 	tok.Literal = string(s.input[pos:s.curr])
-	if isKeyword(tok.Literal) {
-		tok.Type = Keyword
+	if token.IsKeyword(tok.Literal) {
+		tok.Type = token.Keyword
 	}
-	if tok.Literal == kwTrue || tok.Literal == kwFalse {
-		tok.Type = Boolean
+	if tok.Literal == token.KwTrue || tok.Literal == token.KwFalse {
+		tok.Type = token.Boolean
 	}
 }
 
-func (s *Scanner) scanNumber(tok *Token) {
+func (s *Scanner) scanNumber(tok *token.Token) {
 	scan := func(accept func(rune) bool) {
 		for accept(s.char) {
 			s.read()
@@ -109,7 +111,7 @@ func (s *Scanner) scanNumber(tok *Token) {
 	}
 	defer s.unread()
 	pos := s.curr
-	tok.Type = Integer
+	tok.Type = token.Integer
 	if s.char == '0' {
 		var accept func(rune) bool
 		switch s.peek() {
@@ -133,144 +135,144 @@ func (s *Scanner) scanNumber(tok *Token) {
 	if s.char == dot {
 		s.read()
 		scan(isDigit)
-		tok.Type = Double
+		tok.Type = token.Double
 	}
 	tok.Literal = string(s.input[pos:s.curr])
 }
 
-func (s *Scanner) scanOperator(tok *Token) {
+func (s *Scanner) scanOperator(tok *token.Token) {
 	switch s.char {
 	case dot:
-		tok.Type = Dot
+		tok.Type = token.Dot
 	case caret:
-		tok.Type = BinXor
+		tok.Type = token.BinXor
 		if s.peek() == equal {
-			tok.Type = BinXorAssign
+			tok.Type = token.BinXorAssign
 			s.read()
 		}
 	case tilde:
-		tok.Type = BinNot
+		tok.Type = token.BinNot
 	case ampersand:
-		tok.Type = BinAnd
+		tok.Type = token.BinAnd
 		if k := s.peek(); k == equal {
-			tok.Type = BinAndAssign
+			tok.Type = token.BinAndAssign
 			s.read()
 		} else if k == ampersand {
-			tok.Type = And
+			tok.Type = token.And
 			s.read()
 		}
 	case pipe:
-		tok.Type = BinOr
+		tok.Type = token.BinOr
 		if k := s.peek(); k == equal {
-			tok.Type = BinOrAssign
+			tok.Type = token.BinOrAssign
 			s.read()
 		} else if k == pipe {
-			tok.Type = Or
+			tok.Type = token.Or
 			s.read()
 		}
 	case bang:
-		tok.Type = Not
+		tok.Type = token.Not
 		if s.peek() == equal {
-			tok.Type = Ne
+			tok.Type = token.Ne
 			s.read()
 		}
 	case equal:
-		tok.Type = Assign
+		tok.Type = token.Assign
 		if s.peek() == equal {
-			tok.Type = Eq
+			tok.Type = token.Eq
 			s.read()
 		}
 	case langle:
-		tok.Type = Lt
+		tok.Type = token.Lt
 		if k := s.peek(); k == equal {
-			tok.Type = Le
+			tok.Type = token.Le
 			s.read()
 		} else if k == langle {
-			tok.Type = Lshift
+			tok.Type = token.Lshift
 			s.read()
 			if s.char == equal {
-				tok.Type = LshiftAssign
+				tok.Type = token.LshiftAssign
 			}
 		}
 	case rangle:
-		tok.Type = Gt
+		tok.Type = token.Gt
 		if k := s.peek(); k == equal {
-			tok.Type = Ge
+			tok.Type = token.Ge
 			s.read()
 		} else if k == rangle {
-			tok.Type = Rshift
+			tok.Type = token.Rshift
 			s.read()
 			if s.char == equal {
-				tok.Type = RshiftAssign
+				tok.Type = token.RshiftAssign
 			}
 		}
 	case comma:
-		tok.Type = Comma
+		tok.Type = token.Comma
 	case lparen:
-		tok.Type = Lparen
+		tok.Type = token.Lparen
 	case rparen:
-		tok.Type = Rparen
+		tok.Type = token.Rparen
 	case lsquare:
-		tok.Type = Lsquare
+		tok.Type = token.Lsquare
 		if isNL(s.peek()) {
 			s.read()
 			s.skipNL()
 		}
 	case rsquare:
-		tok.Type = Rsquare
+		tok.Type = token.Rsquare
 	case lcurly:
-		tok.Type = Lcurly
+		tok.Type = token.Lcurly
 		if isNL(s.peek()) {
 			s.read()
 			s.skipNL()
 		}
 	case rcurly:
-		tok.Type = Rcurly
+		tok.Type = token.Rcurly
 	case plus:
-		tok.Type = Add
+		tok.Type = token.Add
 		if s.peek() == equal {
-			tok.Type = AddAssign
+			tok.Type = token.AddAssign
 			s.read()
 		}
 	case minus:
-		tok.Type = Sub
+		tok.Type = token.Sub
 		if s.peek() == equal {
-			tok.Type = SubAssign
+			tok.Type = token.SubAssign
 			s.read()
 		}
 	case star:
-		tok.Type = Mul
+		tok.Type = token.Mul
 		if s.peek() == star {
-			tok.Type = Pow
+			tok.Type = token.Pow
 			s.read()
 		} else if s.peek() == equal {
-			tok.Type = MulAssign
+			tok.Type = token.MulAssign
 			s.read()
 		}
 	case slash:
-		tok.Type = Div
+		tok.Type = token.Div
 		if s.peek() == equal {
-			tok.Type = DivAssign
+			tok.Type = token.DivAssign
 			s.read()
 		}
 	case percent:
-		tok.Type = Mod
+		tok.Type = token.Mod
 		if s.peek() == equal {
-			tok.Type = ModAssign
+			tok.Type = token.ModAssign
 			s.read()
 		}
 	case semicolon:
-		tok.Type = EOL
+		tok.Type = token.EOL
 	case question:
-		tok.Type = Ternary
+		tok.Type = token.Ternary
 	case colon:
-		tok.Type = Colon
+		tok.Type = token.Colon
 		if s.peek() == equal {
-			tok.Type = Walrus
+			tok.Type = token.Walrus
 			s.read()
 		}
 	default:
-		tok.Type = Invalid
+		tok.Type = token.Invalid
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/midbel/buddy/builtins"
+	"github.com/midbel/buddy/token"
 	"github.com/midbel/buddy/types"
 	"github.com/midbel/slices"
 )
@@ -162,15 +163,15 @@ func evalUnary(u unary, env *Resolver) (types.Primitive, error) {
 		return nil, err
 	}
 	switch u.op {
-	case Not:
+	case token.Not:
 		return res.Not()
-	case Sub:
+	case token.Sub:
 		cal, ok := res.(types.Calculable)
 		if !ok {
 			return nil, fmt.Errorf("%w: rev operator can not be applied on %s", types.ErrOperation, res)
 		}
 		return cal.Rev()
-	case BinNot:
+	case token.BinNot:
 		cal, ok := res.(types.BinaryCalculable)
 		if !ok {
 			return nil, fmt.Errorf("%w: binary not operator can not be applied on %s", types.ErrOperation, res)
@@ -650,15 +651,15 @@ func doBinaryArithmetic(left, right types.Primitive, op rune) (types.Primitive, 
 	}
 	var err error
 	switch op {
-	case Lshift:
+	case token.Lshift:
 		left, err = bin.Lshift(right)
-	case Rshift:
+	case token.Rshift:
 		left, err = bin.Rshift(right)
-	case BinAnd:
+	case token.BinAnd:
 		left, err = bin.And(right)
-	case BinOr:
+	case token.BinOr:
 		left, err = bin.Or(right)
-	case BinXor:
+	case token.BinXor:
 		left, err = bin.Xor(right)
 	default:
 		err = fmt.Errorf("unsupported binary operator")
@@ -673,17 +674,17 @@ func doArithmetic(left, right types.Primitive, op rune) (types.Primitive, error)
 	}
 	var err error
 	switch op {
-	case Add:
+	case token.Add:
 		left, err = cal.Add(right)
-	case Sub:
+	case token.Sub:
 		left, err = cal.Sub(right)
-	case Mul:
+	case token.Mul:
 		left, err = cal.Mul(right)
-	case Div:
+	case token.Div:
 		left, err = cal.Div(right)
-	case Pow:
+	case token.Pow:
 		left, err = cal.Pow(right)
-	case Mod:
+	case token.Mod:
 		left, err = cal.Mod(right)
 	default:
 		err = fmt.Errorf("unsupported binary operator")
@@ -698,17 +699,17 @@ func doComparison(left, right types.Primitive, op rune) (types.Primitive, error)
 	}
 	var err error
 	switch op {
-	case Eq:
+	case token.Eq:
 		left, err = cmp.Eq(right)
-	case Ne:
+	case token.Ne:
 		left, err = cmp.Ne(right)
-	case Lt:
+	case token.Lt:
 		left, err = cmp.Lt(right)
-	case Le:
+	case token.Le:
 		left, err = cmp.Le(right)
-	case Gt:
+	case token.Gt:
 		left, err = cmp.Gt(right)
-	case Ge:
+	case token.Ge:
 		left, err = cmp.Ge(right)
 	default:
 		err = fmt.Errorf("unsupported binary operator")
@@ -717,19 +718,19 @@ func doComparison(left, right types.Primitive, op rune) (types.Primitive, error)
 }
 
 func doRelational(left, right types.Primitive, op rune) (types.Primitive, error) {
-	if op == And {
+	if op == token.And {
 		return types.And(left, right)
 	}
 	return types.Or(left, right)
 }
 
 func isRelational(op rune) bool {
-	return op == And || op == Or
+	return op == token.And || op == token.Or
 }
 
 func isBinArithmetic(op rune) bool {
 	switch op {
-	case Lshift, Rshift, BinAnd, BinOr, BinXor:
+	case token.Lshift, token.Rshift, token.BinAnd, token.BinOr, token.BinXor:
 		return true
 	default:
 		return false
@@ -738,7 +739,7 @@ func isBinArithmetic(op rune) bool {
 
 func isArithmetic(op rune) bool {
 	switch op {
-	case Add, Sub, Div, Mul, Pow, Mod:
+	case token.Add, token.Sub, token.Div, token.Mul, token.Pow, token.Mod:
 		return true
 	default:
 		return false
@@ -747,7 +748,7 @@ func isArithmetic(op rune) bool {
 
 func isComparison(op rune) bool {
 	switch op {
-	case Eq, Ne, Lt, Le, Gt, Ge:
+	case token.Eq, token.Ne, token.Lt, token.Le, token.Gt, token.Ge:
 		return true
 	default:
 		return false

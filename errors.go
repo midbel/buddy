@@ -6,6 +6,8 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
+
+	"github.com/midbel/buddy/token"
 )
 
 func PrintError(w io.Writer, err error) {
@@ -21,7 +23,7 @@ func PrintError(w io.Writer, err error) {
 }
 
 type ParseError struct {
-	Token
+	token.Token
 	File    string
 	Line    string
 	Message string
