@@ -192,20 +192,18 @@ func (p *parser) parseSpecial(s *script) (bool, error) {
 	if p.curr.Type != Keyword {
 		return false, nil
 	}
-	switch p.curr.Literal {
-	default:
+	if p.curr.Literal != kwDef {
 		return false, nil
-	case kwDef:
-		var (
-			ident   = p.peek.Literal
-			fn, err = p.parseFunction()
-		)
-		if err == nil {
-			s.symbols[ident] = fn
-			err = p.eol()
-		}
-		return true, err
 	}
+	var (
+		ident   = p.peek.Literal
+		fn, err = p.parseFunction()
+	)
+	if err == nil {
+		s.symbols[ident] = fn
+		err = p.eol()
+	}
+	return true, err
 }
 
 func (p *parser) parseKeyword() (Expression, error) {
@@ -264,8 +262,8 @@ func (p *parser) parseFor() (Expression, error) {
 			return nil, p.parseError("illegal expression! assignment expected")
 		}
 	}
-	if p.curr.Type != EOL {
-		return nil, p.parseError("expected ';'")
+	if err := p.expect(EOL, "expected ';'"); err != nil {
+		return nil, err
 	}
 	p.next()
 	if p.curr.Type != EOL {
@@ -274,8 +272,8 @@ func (p *parser) parseFor() (Expression, error) {
 			return nil, err
 		}
 	}
-	if p.curr.Type != EOL {
-		return nil, p.parseError("expected ';'")
+	if err := p.expect(EOL, "expected ';'"); err != nil {
+		return nil, err
 	}
 	p.next()
 	if p.curr.Type != Lcurly {
@@ -284,8 +282,8 @@ func (p *parser) parseFor() (Expression, error) {
 			return nil, err
 		}
 	}
-	if p.curr.Type != Lcurly {
-		return nil, p.parseError("expected '{'")
+	if err := p.expect(Lcurly, "expected '{'"); err != nil {
+		return nil, err
 	}
 	loop.body, err = p.parseBlock()
 	if p.curr.Type != EOL && p.curr.Type != EOF {
@@ -307,8 +305,8 @@ func (p *parser) parseForeach(ident string) (Expression, error) {
 	if expr.iter, err = p.parse(powLowest); err != nil {
 		return nil, err
 	}
-	if p.curr.Type != Lcurly {
-		return nil, p.parseError("expected '{'")
+	if err := p.expect(Lcurly, "expected '{'"); err != nil {
+		return nil, err
 	}
 	expr.body, err = p.parseBlock()
 	if p.curr.Type != EOL && p.curr.Type != EOF {
@@ -339,8 +337,8 @@ func (p *parser) parseFrom() (Expression, error) {
 	}
 	p.next()
 	for p.curr.Type != EOL && !p.done() {
-		if p.curr.Type != Ident {
-			return nil, p.parseError("expected identifier")
+		if err := p.expect(Ident, "expected identifier"); err != nil {
+			return nil, err
 		}
 		s := symbol{
 			ident: p.curr.Literal,
@@ -349,8 +347,8 @@ func (p *parser) parseFrom() (Expression, error) {
 		p.next()
 		if p.curr.Type == Keyword && p.curr.Literal == kwAs {
 			p.next()
-			if p.curr.Type != Ident {
-				return nil, p.parseError("expected identifier")
+			if err := p.expect(Ident, "expected identifier"); err != nil {
+				return nil, err
 			}
 			s.alias = p.curr.Literal
 			p.next()
@@ -387,8 +385,8 @@ func (p *parser) parseImport() (Expression, error) {
 	mod.alias = slices.Lst(mod.ident)
 	if p.curr.Type == Keyword && p.curr.Literal == kwAs {
 		p.next()
-		if p.curr.Type != Ident {
-			return nil, p.parseError("expected identifier")
+		if err := p.expect(Ident, "expected identifier"); err != nil {
+			return nil, err
 		}
 		mod.alias = p.curr.Literal
 		p.next()
@@ -397,8 +395,8 @@ func (p *parser) parseImport() (Expression, error) {
 }
 
 func (p *parser) parseParameters() ([]Expression, error) {
-	if p.curr.Type != Lparen {
-		return nil, p.parseError("expected ')'")
+	if err := p.expect(Lparen, "expected ')'"); err != nil {
+		return nil, err
 	}
 	p.next()
 
@@ -407,8 +405,8 @@ func (p *parser) parseParameters() ([]Expression, error) {
 		if p.peek.Type == Assign {
 			break
 		}
-		if p.curr.Type != Ident {
-			return nil, p.parseError("expected identifier")
+		if err := p.expect(Ident, "expected identifier"); err != nil {
+			return nil, err
 		}
 		a := createParameter(p.curr.Literal)
 		list = append(list, a)
@@ -425,13 +423,13 @@ func (p *parser) parseParameters() ([]Expression, error) {
 		}
 	}
 	for p.curr.Type != Rparen && !p.done() {
-		if p.curr.Type != Ident {
-			return nil, p.parseError("expected identifier")
+		if err := p.expect(Ident, "expected identifier"); err != nil {
+			return nil, err
 		}
 		a := createParameter(p.curr.Literal)
 		p.next()
-		if p.curr.Type != Assign {
-			return nil, p.parseError("expected '='")
+		if err := p.expect(Assign, "expected '='"); err != nil {
+			return nil, err
 		}
 		p.next()
 		expr, err := p.parse(powLowest)
@@ -454,8 +452,8 @@ func (p *parser) parseParameters() ([]Expression, error) {
 	if len(list) > MaxArity {
 		return nil, p.parseError("too many parameters given to function")
 	}
-	if p.curr.Type != Rparen {
-		return nil, p.parseError("expected ')")
+	if err := p.expect(Rparen, "expected ')"); err != nil {
+		return nil, err
 	}
 	p.next()
 	return list, nil
@@ -481,8 +479,8 @@ func (p *parser) parseFunction() (Expression, error) {
 }
 
 func (p *parser) parseBlock() (Expression, error) {
-	if p.curr.Type != Lcurly {
-		return nil, p.parseError("expected '{")
+	if err := p.expect(Lcurly, "expected '{"); err != nil {
+		return nil, err
 	}
 	p.next()
 	var list []Expression
@@ -492,13 +490,13 @@ func (p *parser) parseBlock() (Expression, error) {
 			return nil, err
 		}
 		list = append(list, e)
-		if p.curr.Type != EOL {
-			return nil, p.parseError("expected newline or ';'")
+		if err := p.expect(EOL, "expected newline or ';'"); err != nil {
+			return nil, err
 		}
 		p.next()
 	}
-	if p.curr.Type != Rcurly {
-		return nil, p.parseError("expected '}")
+	if err := p.expect(Rcurly, "expected '}"); err != nil {
+		return nil, err
 	}
 	p.next()
 	switch len(list) {
@@ -519,9 +517,6 @@ func (p *parser) parseIf() (Expression, error) {
 	expr.cdt, err = p.parse(powLowest)
 	if err != nil {
 		return nil, err
-	}
-	if p.curr.Type != Lcurly {
-		return nil, p.parseError("expected '{")
 	}
 	expr.csq, err = p.parseBlock()
 	if err != nil {
@@ -553,9 +548,6 @@ func (p *parser) parseWhile() (Expression, error) {
 	expr.cdt, err = p.parse(powLowest)
 	if err != nil {
 		return nil, err
-	}
-	if p.curr.Type != Lcurly {
-		return nil, p.parseError("expected '{")
 	}
 	expr.body, err = p.parseBlock()
 	if err != nil {
@@ -601,8 +593,8 @@ func (p *parser) parseTernary(left Expression) (Expression, error) {
 	if expr.csq, err = p.parse(powLowest); err != nil {
 		return nil, err
 	}
-	if p.curr.Type != Colon {
-		return nil, p.parseError("expected ':'")
+	if err := p.expect(Colon, "expected ':'"); err != nil {
+		return nil, err
 	}
 	p.next()
 
@@ -742,8 +734,8 @@ func (p *parser) parseIndex(left Expression) (Expression, error) {
 			return nil, p.parseError("expected ',' or ']")
 		}
 	}
-	if p.curr.Type != Rsquare {
-		return nil, p.parseError("expected ']'")
+	if err := p.expect(Rsquare, "expected ']'"); err != nil {
+		return nil, err
 	}
 	if len(ix.list) == 0 {
 		return nil, p.parseError("empty index")
@@ -757,8 +749,8 @@ func (p *parser) parseCompitem(until rune) ([]compitem, error) {
 	p.next()
 	for p.curr.Type != until && !p.done() {
 		var item compitem
-		if p.curr.Type != Ident {
-			return nil, p.parseError("expected identifier")
+		if err := p.expect(Ident, "expected identifier"); err != nil {
+			return nil, err
 		}
 		item.ident = p.curr.Literal
 		p.next()
@@ -791,8 +783,8 @@ func (p *parser) parseCompitem(until rune) ([]compitem, error) {
 		}
 		list = append(list, item)
 	}
-	if p.curr.Type != until {
-		return nil, fmt.Errorf("expected ']")
+	if err := p.expect(until, "unexpected token"); err != nil {
+		return nil, err
 	}
 	p.next()
 	return list, nil
@@ -830,8 +822,8 @@ func (p *parser) parseArray() (Expression, error) {
 			return nil, p.parseError("expected ',' or ']")
 		}
 	}
-	if p.curr.Type != Rsquare {
-		return nil, p.parseError("expected ']'")
+	if err := p.expect(Rsquare, "expected ']'"); err != nil {
+		return nil, err
 	}
 	p.next()
 	return arr, nil
@@ -858,8 +850,8 @@ func (p *parser) parseDict() (Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		if p.curr.Type != Colon {
-			return nil, p.parseError("expected ':'")
+		if err := p.expect(Colon, "expected ':'"); err != nil {
+			return nil, err
 		}
 		p.next()
 		v, err := p.parse(powLowest)
@@ -879,8 +871,8 @@ func (p *parser) parseDict() (Expression, error) {
 			return nil, p.parseError("expected ',' or '}")
 		}
 	}
-	if p.curr.Type != Rcurly {
-		return nil, p.parseError("expected '}'")
+	if err := p.expect(Rcurly, "expected '}'"); err != nil {
+		return nil, err
 	}
 	p.next()
 	return d, nil
@@ -964,13 +956,13 @@ func (p *parser) parseCall(left Expression) (Expression, error) {
 		}
 	}
 	for p.curr.Type != Rparen && !p.done() {
-		if p.curr.Type != Ident {
-			return nil, p.parseError("expected identifier")
+		if err := p.expect(Ident, "expected identifier"); err != nil {
+			return nil, err
 		}
 		a := createParameter(p.curr.Literal)
 		p.next()
-		if p.curr.Type != Assign {
-			return nil, p.parseError("expected '='")
+		if err := p.expect(Assign, "expected '='"); err != nil {
+			return nil, err
 		}
 		p.next()
 		val, err := p.parse(powLowest)
@@ -990,8 +982,8 @@ func (p *parser) parseCall(left Expression) (Expression, error) {
 			return nil, p.parseError("expected ','")
 		}
 	}
-	if p.curr.Type != Rparen {
-		return nil, p.parseError("expected ')'")
+	if err := p.expect(Rparen, "expected ')'"); err != nil {
+		return nil, err
 	}
 	p.next()
 	return expr, nil
@@ -1003,11 +995,18 @@ func (p *parser) parseGroup() (Expression, error) {
 	if err != nil {
 		return nil, err
 	}
-	if p.curr.Type != Rparen {
-		return nil, p.parseError("expected ')'")
+	if err := p.expect(Rparen, "expected ')'"); err != nil {
+		return nil, err
 	}
 	p.next()
 	return expr, nil
+}
+
+func (p *parser) expect(r rune, msg string) error {
+	if p.curr.Type != r {
+		return p.parseError(msg)
+	}
+	return nil
 }
 
 func (p *parser) eol() error {
