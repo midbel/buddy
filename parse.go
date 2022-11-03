@@ -245,10 +245,7 @@ func (p *parser) parseAssert() (Expression, error) {
 
 func (p *parser) parseFor() (Expression, error) {
 	p.next()
-	if p.curr.Type != Lparen {
-		return nil, p.parseError("expected '('")
-	}
-	p.next()
+
 	var (
 		loop forloop
 		err  error
@@ -281,16 +278,15 @@ func (p *parser) parseFor() (Expression, error) {
 		return nil, p.parseError("expected ';'")
 	}
 	p.next()
-	if p.curr.Type != Rparen {
+	if p.curr.Type != Lcurly {
 		loop.incr, err = p.parse(powLowest)
 		if err != nil {
 			return nil, err
 		}
 	}
-	if p.curr.Type != Rparen {
-		return nil, p.parseError("expected ')'")
+	if p.curr.Type != Lcurly {
+		return nil, p.parseError("expected '{'")
 	}
-	p.next()
 	loop.body, err = p.parseBlock()
 	if p.curr.Type != EOL && p.curr.Type != EOF {
 		return nil, p.parseError("expected newline or ';'")
@@ -311,10 +307,9 @@ func (p *parser) parseForeach(ident string) (Expression, error) {
 	if expr.iter, err = p.parse(powLowest); err != nil {
 		return nil, err
 	}
-	if p.curr.Type != Rparen {
-		return nil, p.parseError("expected ')'")
+	if p.curr.Type != Lcurly {
+		return nil, p.parseError("expected '{'")
 	}
-	p.next()
 	expr.body, err = p.parseBlock()
 	if p.curr.Type != EOL && p.curr.Type != EOF {
 		return nil, p.parseError("expected newline or ';'")
@@ -516,10 +511,6 @@ func (p *parser) parseBlock() (Expression, error) {
 
 func (p *parser) parseIf() (Expression, error) {
 	p.next()
-	if p.curr.Type != Lparen {
-		return nil, p.parseError("expected '(")
-	}
-	p.next()
 
 	var (
 		expr test
@@ -529,10 +520,9 @@ func (p *parser) parseIf() (Expression, error) {
 	if err != nil {
 		return nil, err
 	}
-	if p.curr.Type != Rparen {
-		return nil, p.parseError("expected ')")
+	if p.curr.Type != Lcurly {
+		return nil, p.parseError("expected '{")
 	}
-	p.next()
 	expr.csq, err = p.parseBlock()
 	if err != nil {
 		return nil, err
@@ -555,10 +545,6 @@ func (p *parser) parseIf() (Expression, error) {
 
 func (p *parser) parseWhile() (Expression, error) {
 	p.next()
-	if p.curr.Type != Lparen {
-		return nil, p.parseError("expected '('")
-	}
-	p.next()
 
 	var (
 		expr while
@@ -568,10 +554,9 @@ func (p *parser) parseWhile() (Expression, error) {
 	if err != nil {
 		return nil, err
 	}
-	if p.curr.Type != Rparen {
-		return nil, p.parseError("expected ']")
+	if p.curr.Type != Lcurly {
+		return nil, p.parseError("expected '{")
 	}
-	p.next()
 	expr.body, err = p.parseBlock()
 	if err != nil {
 		return nil, err

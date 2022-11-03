@@ -5,15 +5,13 @@ import (
 )
 
 func init() {
-	// visitors = []visitFunc{
-	// 	trackVariables,
-	// 	trackImport,
-	// 	trackCyclic,
-	// 	trackLoop,
-	// 	replaceFunctionArgs,
-	// 	inlineFunctionCall,
-	// 	trackValue,
-	// }
+	visitors = []visitFunc{
+		// trackVariables,
+		// trackImport,
+		// trackCyclic,
+		trackLoop,
+		trackValue,
+	}
 }
 
 type visitFunc func(Expression, *Resolver) (Expression, error)
@@ -402,14 +400,6 @@ func (k vartracker) check(expr Expression, env *Resolver) error {
 	default:
 	}
 	return err
-}
-
-func replaceFunctionArgs(expr Expression, env *Resolver) (Expression, error) {
-	return expr, nil
-}
-
-func inlineFunctionCall(expr Expression, env *Resolver) (Expression, error) {
-	return expr, nil
 }
 
 func undefinedVar(ident string) error {
