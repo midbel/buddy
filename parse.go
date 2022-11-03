@@ -154,6 +154,10 @@ func (p *parser) Parse() (Expression, error) {
 	var s script
 	s.symbols = make(map[string]Expression)
 	for !p.done() {
+		if p.is(token.Comment) {
+			p.next()
+			continue
+		}
 		if ok, err := p.parseSpecial(&s); ok {
 			if err != nil {
 				return nil, err
@@ -1016,7 +1020,7 @@ func (p *parser) expect(r rune, msg string) error {
 }
 
 func (p *parser) expectKW(kw, msg string) error {
-	if err = p.expect(token.Keyword, msg); err != nil {
+	if err := p.expect(token.Keyword, msg); err != nil {
 		return err
 	}
 	if p.curr.Literal != kw {

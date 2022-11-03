@@ -2,6 +2,7 @@ package scan
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"unicode/utf8"
 
@@ -55,6 +56,10 @@ func (s *Scanner) Scan() token.Token {
 		tok.Type = token.EOF
 		return tok
 	}
+	if pk := s.peek(); s.char == slash && (pk == slash || pk == star) {
+		s.scanComment(&tok)
+		return tok
+	}
 	switch {
 	case isDigit(s.char):
 		s.scanNumber(&tok)
@@ -71,6 +76,30 @@ func (s *Scanner) Scan() token.Token {
 		tok.Type = token.Invalid
 	}
 	return tok
+}
+
+func (s *Scanner) scanComment(tok *token.Token) {
+	var (
+		accept = func() bool { return isNL(s.char) }
+		long   bool
+	)
+	if long = s.peek() == star; long {
+		accept = func() bool { return s.char == star && s.peek() == slash }
+	}
+	s.read()
+	s.read()
+	s.skipBlank()
+	pos := s.curr
+	for !accept() {
+		s.read()
+	}
+	tok.Type = token.Comment
+	tok.Literal = string(s.input[pos:s.curr])
+	if long {
+		s.read()
+		s.read()
+	}
+	s.skipNL()
 }
 
 func (s *Scanner) scanLiteral(tok *token.Token) {
