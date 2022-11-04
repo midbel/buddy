@@ -4,6 +4,11 @@ import (
 	"fmt"
 )
 
+type Callable interface {
+	Call(...Primitive) (Primitive, error)
+	Arity() int
+}
+
 type Environ struct {
 	parent *Environ
 	values map[string]value
