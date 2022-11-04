@@ -608,11 +608,16 @@ func (p *Parser) parseInfix(left ast.Expression) (ast.Expression, error) {
 
 func (p *Parser) parseSlice(left ast.Expression) (ast.Expression, error) {
 	p.next()
-	right, err := p.parse(powLowest)
-	if err != nil {
-		return nil, err
+	var (
+		expr = ast.CreateSlice(left, nil)
+		err  error
+	)
+	if !p.is(token.Colon) {
+		expr.End, err = p.parse(powLowest)
+		if err != nil {
+			return nil, err
+		}
 	}
-	expr := ast.CreateSlice(left, right)
 	if p.is(token.Colon) {
 		p.next()
 		expr.Step, err = p.parse(powLowest)
@@ -626,20 +631,26 @@ func (p *Parser) parseIndex(left ast.Expression) (ast.Expression, error) {
 	default:
 		return nil, p.parseError("unexpected index operator")
 	}
-	ix := ast.Index{
-		Arr: left,
-	}
+	ix := ast.CreateIndex(left)
 	p.next()
 	for !p.is(token.Rsquare) && !p.done() {
-		expr, err := p.parse(powLowest)
-		if err != nil {
-			return nil, err
-		}
+		var (
+			expr ast.Expression
+			err  error
+		)
 		if p.is(token.Colon) {
-			expr, err = p.parseSlice(expr)
+			expr, err = p.parseSlice(nil)
+		} else {
+			expr, err = p.parse(powLowest)
 			if err != nil {
 				return nil, err
 			}
+			if p.is(token.Colon) {
+				expr, err = p.parseSlice(expr)
+			}
+		}
+		if err != nil {
+			return nil, err
 		}
 		switch p.curr.Type {
 		case token.Comma:
