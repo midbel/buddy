@@ -168,6 +168,7 @@ func (_ Dict) isPrimitive() bool {
 type Slice struct {
 	Start Expression
 	End   Expression
+	Step  Expression
 }
 
 func CreateSlice(start, end Expression) Slice {

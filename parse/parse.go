@@ -606,6 +606,20 @@ func (p *Parser) parseInfix(left ast.Expression) (ast.Expression, error) {
 	return expr, nil
 }
 
+func (p *Parser) parseSlice(left ast.Expression) (ast.Expression, error) {
+	p.next()
+	right, err := p.parse(powLowest)
+	if err != nil {
+		return nil, err
+	}
+	expr := ast.CreateSlice(left, right)
+	if p.is(token.Colon) {
+		p.next()
+		expr.Step, err = p.parse(powLowest)
+	}
+	return expr, err
+}
+
 func (p *Parser) parseIndex(left ast.Expression) (ast.Expression, error) {
 	switch left.(type) {
 	case ast.Array, ast.Dict, ast.Index, ast.Variable, ast.Literal:
@@ -621,7 +635,12 @@ func (p *Parser) parseIndex(left ast.Expression) (ast.Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		ix.List = append(ix.List, expr)
+		if p.is(token.Colon) {
+			expr, err = p.parseSlice(expr)
+			if err != nil {
+				return nil, err
+			}
+		}
 		switch p.curr.Type {
 		case token.Comma:
 			if p.peekIs(token.Rsquare) {
@@ -632,6 +651,7 @@ func (p *Parser) parseIndex(left ast.Expression) (ast.Expression, error) {
 		default:
 			return nil, p.parseError("expected ',' or ']")
 		}
+		ix.List = append(ix.List, expr)
 	}
 	if err := p.expect(token.Rsquare, "expected ']'"); err != nil {
 		return nil, err
