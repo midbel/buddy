@@ -2,7 +2,6 @@ package scan
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"unicode/utf8"
 
@@ -296,10 +295,6 @@ func (s *Scanner) scanOperator(tok *token.Token) {
 		tok.Type = token.Ternary
 	case colon:
 		tok.Type = token.Colon
-		if s.peek() == equal {
-			tok.Type = token.Walrus
-			s.read()
-		}
 	default:
 		tok.Type = token.Invalid
 	}

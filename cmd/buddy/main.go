@@ -8,8 +8,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/midbel/buddy"
 	"github.com/midbel/buddy/builtins"
+	"github.com/midbel/buddy/eval"
+	"github.com/midbel/buddy/faults"
 	"github.com/midbel/buddy/types"
 )
 
@@ -27,13 +28,14 @@ func main() {
 }
 
 func execute(r io.Reader) error {
-	res, err := buddy.Eval(r)
+	res, err := eval.Eval(r)
 	if err != nil {
-		buddy.PrintError(os.Stderr, err)
+		faults.PrintError(os.Stderr, err)
 		return err
 	}
 	if res != nil {
-		fmt.Printf("%+v\n", res)
+		fmt.Printf("%+v", res)
+		fmt.Println()
 	}
 	return nil
 }
@@ -59,7 +61,7 @@ func interactive(r io.Reader) {
 			io.WriteString(os.Stdout, fmt.Sprintf(in, cmd))
 			continue
 		}
-		res, err := buddy.EvalEnv(strings.NewReader(line), env)
+		res, err := eval.EvalEnv(strings.NewReader(line), env)
 		if err != nil {
 			if builtins.IsExit(err) {
 				var code int

@@ -27,21 +27,13 @@ type Assert struct {
 	Expr Expression
 }
 
-func (_ Assert) isPrimitive() bool {
-	return false
-}
-
-type Link struct {
-	Callable
-}
-
-func CreateLink(call Callable) Expression {
-	return Link{
-		Callable: call,
+func CreateAssert(expr Expression) Assert {
+	return Assert{
+		Expr: expr,
 	}
 }
 
-func (_ Link) isPrimitive() bool {
+func (_ Assert) isPrimitive() bool {
 	return false
 }
 
@@ -66,8 +58,8 @@ type Symbol struct {
 	Alias string
 }
 
-func CreateSymbol(ident string) symbol {
-	return symbol{
+func CreateSymbol(ident string) Symbol {
+	return Symbol{
 		Ident: ident,
 		Alias: ident,
 	}
@@ -77,13 +69,13 @@ func (_ Symbol) isPrimitive() bool {
 	return false
 }
 
-type Module struct {
+type Import struct {
 	Ident   []string
 	Alias   string
 	Symbols []Symbol
 }
 
-func (_ Module) isPrimitive() bool {
+func (_ Import) isPrimitive() bool {
 	return false
 }
 
@@ -91,7 +83,7 @@ type Variable struct {
 	Ident string
 }
 
-func CreateVariable(ident string) variable {
+func CreateVariable(ident string) Variable {
 	return Variable{
 		Ident: ident,
 	}
@@ -105,7 +97,7 @@ type Literal struct {
 	Str string
 }
 
-func CreateLiteral(str string) literal {
+func CreateLiteral(str string) Literal {
 	return Literal{
 		Str: str,
 	}
@@ -119,7 +111,7 @@ type Boolean struct {
 	Value bool
 }
 
-func CreateBoolean(b bool) boolean {
+func CreateBoolean(b bool) Boolean {
 	return Boolean{
 		Value: b,
 	}
@@ -133,7 +125,7 @@ type Integer struct {
 	Value int64
 }
 
-func CreateInteger(n int64) integer {
+func CreateInteger(n int64) Integer {
 	return Integer{
 		Value: n,
 	}
@@ -147,7 +139,7 @@ type Double struct {
 	Value float64
 }
 
-func CreateDouble(f float64) double {
+func CreateDouble(f float64) Double {
 	return Double{
 		Value: f,
 	}
@@ -203,8 +195,8 @@ type Parameter struct {
 	Expr  Expression
 }
 
-func CreateParameter(ident string) parameter {
-	return parameter{
+func CreateParameter(ident string) Parameter {
+	return Parameter{
 		Ident: ident,
 	}
 }
@@ -219,15 +211,13 @@ type Function struct {
 	Body   Expression
 }
 
+func CreateFunction(ident string) Function {
+	return Function{
+		Ident: ident,
+	}
+}
+
 func (_ Function) isPrimitive() bool {
-	return false
-}
-
-type Walrus struct {
-	assign
-}
-
-func (w Walrus) isPrimitive() bool {
 	return false
 }
 
@@ -236,7 +226,7 @@ type Assign struct {
 	Right Expression
 }
 
-func CreateAssign(ident, expr Expression) assign {
+func CreateAssign(ident, expr Expression) Assign {
 	return Assign{
 		Ident: ident,
 		Right: expr,
@@ -260,7 +250,13 @@ type Return struct {
 	Right Expression
 }
 
-func (_ Returned) isPrimitive() bool {
+func CreateReturn(right Expression) Return {
+	return Return{
+		Right: right,
+	}
+}
+
+func (_ Return) isPrimitive() bool {
 	return false
 }
 
@@ -286,6 +282,18 @@ func (_ Binary) isPrimitive() bool {
 type Script struct {
 	List    []Expression
 	Symbols map[string]Expression
+}
+
+func CreateScript() Script {
+	return Script{
+		Symbols: make(map[string]Expression),
+	}
+}
+
+func CreateScriptFromList(list []Expression) Script {
+	return Script{
+		List: list,
+	}
 }
 
 func (_ Script) isPrimitive() bool {

@@ -1,100 +1,52 @@
-package buddy
+package parse
 
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"strconv"
 
+	"github.com/midbel/buddy/ast"
 	"github.com/midbel/buddy/scan"
 	"github.com/midbel/buddy/token"
-	"github.com/midbel/slices"
 )
 
 const MaxArity = 255
 
-const (
-	powLowest   = iota
-	powAssign   // =
-	powTernary  // ?:
-	powBinary   // &, |, ^, ~
-	powRelation // &&, ||
-	powShift    // <<, >>
-	powEqual    // ==, !=
-	powCompare  // <, <=, >, >=
-	powAdd      // +, -
-	powMul      // /, *, **, %
-	powIndex
-	powPrefix
-	powCall // ()
-	powDot
-)
+type ParseError struct {
+	token.Token
+	File    string
+	Line    string
+	Message string
+}
 
-type powerMap map[rune]int
-
-func (p powerMap) Get(r rune) int {
-	v, ok := p[r]
-	if !ok {
-		return powLowest
+func (e ParseError) Error() string {
+	if e.File == "" {
+		e.File = "<input>"
+	} else {
+		e.File = filepath.Base(e.File)
 	}
-	return v
+	return fmt.Sprintf("%s %s: %s", e.File, e.Position, e.Message)
 }
 
-var powers = powerMap{
-	token.Lshift:       powShift,
-	token.Rshift:       powShift,
-	token.BinAnd:       powBinary,
-	token.BinOr:        powBinary,
-	token.BinXor:       powBinary,
-	token.Add:          powAdd,
-	token.Sub:          powAdd,
-	token.Mul:          powMul,
-	token.Div:          powMul,
-	token.Mod:          powMul,
-	token.Pow:          powMul,
-	token.Walrus:       powAssign,
-	token.Assign:       powAssign,
-	token.AddAssign:    powAssign,
-	token.SubAssign:    powAssign,
-	token.MulAssign:    powAssign,
-	token.DivAssign:    powAssign,
-	token.ModAssign:    powAssign,
-	token.RshiftAssign: powAssign,
-	token.LshiftAssign: powAssign,
-	token.BinAndAssign: powAssign,
-	token.BinOrAssign:  powAssign,
-	token.BinXorAssign: powAssign,
-	token.Lparen:       powCall,
-	token.Ternary:      powTernary,
-	token.And:          powRelation,
-	token.Or:           powRelation,
-	token.Eq:           powEqual,
-	token.Ne:           powEqual,
-	token.Lt:           powCompare,
-	token.Le:           powCompare,
-	token.Gt:           powCompare,
-	token.Ge:           powCompare,
-	token.Lsquare:      powIndex,
-	token.Dot:          powDot,
-}
-
-type parser struct {
+type Parser struct {
 	file string
 	scan *scan.Scanner
 	curr token.Token
 	peek token.Token
 
-	prefix map[rune]func() (Expression, error)
-	infix  map[rune]func(Expression) (Expression, error)
+	prefix map[rune]func() (ast.Expression, error)
+	infix  map[rune]func(ast.Expression) (ast.Expression, error)
 }
 
-func Parse(r io.Reader) (Expression, error) {
-	p := parser{
+func New(r io.Reader) *Parser {
+	p := Parser{
 		scan: scan.Scan(r),
 	}
 	if n, ok := r.(interface{ Name() string }); ok {
 		p.file = n.Name()
 	}
-	p.prefix = map[rune]func() (Expression, error){
+	p.prefix = map[rune]func() (ast.Expression, error){
 		token.BinNot:  p.parsePrefix,
 		token.Sub:     p.parsePrefix,
 		token.Not:     p.parsePrefix,
@@ -108,7 +60,7 @@ func Parse(r io.Reader) (Expression, error) {
 		token.Lcurly:  p.parseDict,
 		token.Keyword: p.parseKeyword,
 	}
-	p.infix = map[rune]func(Expression) (Expression, error){
+	p.infix = map[rune]func(ast.Expression) (ast.Expression, error){
 		token.Add:          p.parseInfix,
 		token.Sub:          p.parseInfix,
 		token.Mul:          p.parseInfix,
@@ -120,7 +72,6 @@ func Parse(r io.Reader) (Expression, error) {
 		token.BinAnd:       p.parseInfix,
 		token.BinOr:        p.parseInfix,
 		token.BinXor:       p.parseInfix,
-		token.Walrus:       p.parseWalrus,
 		token.Assign:       p.parseAssign,
 		token.Dot:          p.parsePath,
 		token.AddAssign:    p.parseAssign,
@@ -147,12 +98,11 @@ func Parse(r io.Reader) (Expression, error) {
 	}
 	p.next()
 	p.next()
-	return p.Parse()
+	return &p
 }
 
-func (p *parser) Parse() (Expression, error) {
-	var s script
-	s.symbols = make(map[string]Expression)
+func (p *Parser) Parse() (ast.Expression, error) {
+	s := ast.CreateScript()
 	for !p.done() {
 		if p.is(token.Comment) {
 			p.next()
@@ -168,7 +118,7 @@ func (p *parser) Parse() (Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		s.list = append(s.list, e)
+		s.List = append(s.List, e)
 		if err := p.eol(); err != nil {
 			return nil, err
 		}
@@ -176,7 +126,7 @@ func (p *parser) Parse() (Expression, error) {
 	return s, nil
 }
 
-func (p *parser) parse(pow int) (Expression, error) {
+func (p *Parser) parse(pow int) (ast.Expression, error) {
 	left, err := p.getPrefixExpr()
 	if err != nil {
 		return nil, err
@@ -190,7 +140,7 @@ func (p *parser) parse(pow int) (Expression, error) {
 	return left, nil
 }
 
-func (p *parser) parseSpecial(s *script) (bool, error) {
+func (p *Parser) parseSpecial(s *ast.Script) (bool, error) {
 	if err := p.expectKW(token.KwDef, ""); err != nil {
 		return false, nil
 	}
@@ -199,13 +149,13 @@ func (p *parser) parseSpecial(s *script) (bool, error) {
 		fn, err = p.parseFunction()
 	)
 	if err == nil {
-		s.symbols[ident] = fn
+		s.Symbols[ident] = fn
 		err = p.eol()
 	}
 	return true, err
 }
 
-func (p *parser) parseKeyword() (Expression, error) {
+func (p *Parser) parseKeyword() (ast.Expression, error) {
 	switch p.curr.Literal {
 	case token.KwIf:
 		return p.parseIf()
@@ -230,33 +180,31 @@ func (p *parser) parseKeyword() (Expression, error) {
 	}
 }
 
-func (p *parser) parseAssert() (Expression, error) {
+func (p *Parser) parseAssert() (ast.Expression, error) {
 	p.next()
-	var (
-		ass assert
-		err error
-	)
-	ass.expr, err = p.parse(powLowest)
-	return ass, err
+	expr, err := p.parse(powLowest)
+	if err != nil {
+		return nil, err
+	}
+	return ast.CreateAssert(expr), err
 }
 
-func (p *parser) parseFor() (Expression, error) {
+func (p *Parser) parseFor() (ast.Expression, error) {
 	p.next()
 
 	var (
-		loop forloop
+		loop ast.For
 		err  error
 	)
 	if !p.is(token.EOL) {
-		loop.init, err = p.parse(powLowest)
+		loop.Init, err = p.parse(powLowest)
 		if err != nil {
 			return nil, err
 		}
-		switch e := loop.init.(type) {
-		case variable:
-			return p.parseForeach(e.ident)
-		case assign:
-		case walrus:
+		switch e := loop.Init.(type) {
+		case ast.Variable:
+			return p.parseForeach(e.Ident)
+		case ast.Assign:
 		default:
 			return nil, p.parseError("illegal expression! assignment expected")
 		}
@@ -266,7 +214,7 @@ func (p *parser) parseFor() (Expression, error) {
 	}
 	p.next()
 	if !p.is(token.EOL) {
-		loop.cdt, err = p.parse(powLowest)
+		loop.Cdt, err = p.parse(powLowest)
 		if err != nil {
 			return nil, err
 		}
@@ -276,43 +224,43 @@ func (p *parser) parseFor() (Expression, error) {
 	}
 	p.next()
 	if !p.is(token.Lcurly) {
-		loop.incr, err = p.parse(powLowest)
+		loop.Incr, err = p.parse(powLowest)
 		if err != nil {
 			return nil, err
 		}
 	}
-	loop.body, err = p.parseBlock()
+	loop.Body, err = p.parseBlock()
 	if !p.is(token.EOL) && !p.is(token.EOF) {
 		return nil, p.parseError("expected newline or ';'")
 	}
 	return loop, nil
 }
 
-func (p *parser) parseForeach(ident string) (Expression, error) {
+func (p *Parser) parseForeach(ident string) (ast.Expression, error) {
 	var (
-		expr foreach
+		expr ast.ForEach
 		err  error
 	)
-	expr.ident = ident
+	expr.Ident = ident
 	if err := p.expectKW(token.KwIn, "expected 'in' keyword"); err != nil {
 		return nil, err
 	}
 	p.next()
-	if expr.iter, err = p.parse(powLowest); err != nil {
+	if expr.Iter, err = p.parse(powLowest); err != nil {
 		return nil, err
 	}
-	expr.body, err = p.parseBlock()
+	expr.Body, err = p.parseBlock()
 	if !p.is(token.EOL) && !p.is(token.EOF) {
 		return nil, p.parseError("expected newline or ';'")
 	}
 	return expr, nil
 }
 
-func (p *parser) parseFrom() (Expression, error) {
+func (p *Parser) parseFrom() (ast.Expression, error) {
 	p.next()
-	var mod module
+	var imp ast.Import
 	for p.is(token.Ident) {
-		mod.ident = append(mod.ident, p.curr.Literal)
+		imp.Ident = append(imp.Ident, p.curr.Literal)
 		p.next()
 		switch p.curr.Type {
 		case token.Dot:
@@ -322,7 +270,7 @@ func (p *parser) parseFrom() (Expression, error) {
 			return nil, p.parseError("expected keyword, newline, '.' or ';'")
 		}
 	}
-	if len(mod.ident) == 0 {
+	if len(imp.Ident) == 0 {
 		return nil, p.parseError("no identifier given for import")
 	}
 	if err := p.expectKW(token.KwImport, "expected 'import' keyword"); err != nil {
@@ -333,17 +281,17 @@ func (p *parser) parseFrom() (Expression, error) {
 		if err := p.expect(token.Ident, "expected identifier"); err != nil {
 			return nil, err
 		}
-		s := createSymbol(p.curr.Literal)
+		s := ast.CreateSymbol(p.curr.Literal)
 		p.next()
 		if err := p.expectKW(token.KwAs, ""); err == nil {
 			p.next()
 			if err := p.expect(token.Ident, "expected identifier"); err != nil {
 				return nil, err
 			}
-			s.alias = p.curr.Literal
+			s.Alias = p.curr.Literal
 			p.next()
 		}
-		mod.symbols = append(mod.symbols, s)
+		imp.Symbols = append(imp.Symbols, s)
 		switch p.curr.Type {
 		case token.Comma:
 			if p.peekIs(token.EOL) || p.peekIs(token.EOF) {
@@ -355,14 +303,15 @@ func (p *parser) parseFrom() (Expression, error) {
 			return nil, p.parseError("expected newline, ',' or ;'")
 		}
 	}
-	return mod, nil
+	return imp, nil
 }
 
-func (p *parser) parseImport() (Expression, error) {
+func (p *Parser) parseImport() (ast.Expression, error) {
 	p.next()
-	var mod module
+	var imp ast.Import
 	for p.is(token.Ident) {
-		mod.ident = append(mod.ident, p.curr.Literal)
+		imp.Ident = append(imp.Ident, p.curr.Literal)
+		imp.Alias = p.curr.Literal
 		p.next()
 		switch p.curr.Type {
 		case token.Dot:
@@ -372,28 +321,24 @@ func (p *parser) parseImport() (Expression, error) {
 			return nil, p.parseError("expected keyword, newline, '.' or ';'")
 		}
 	}
-	if len(mod.ident) == 0 {
-		return nil, p.parseError("no identifier given for import")
-	}
-	mod.alias = slices.Lst(mod.ident)
 	if err := p.expectKW(token.KwAs, ""); err == nil {
 		p.next()
 		if err := p.expect(token.Ident, "expected identifier"); err != nil {
 			return nil, err
 		}
-		mod.alias = p.curr.Literal
+		imp.Alias = p.curr.Literal
 		p.next()
 	}
-	return mod, nil
+	return imp, nil
 }
 
-func (p *parser) parseParameters() ([]Expression, error) {
+func (p *Parser) parseParameters() ([]ast.Expression, error) {
 	if err := p.expect(token.Lparen, "expected ')'"); err != nil {
 		return nil, err
 	}
 	p.next()
 
-	var list []Expression
+	var list []ast.Expression
 	for !p.is(token.Rparen) && !p.done() {
 		if p.peekIs(token.Assign) {
 			break
@@ -401,7 +346,7 @@ func (p *parser) parseParameters() ([]Expression, error) {
 		if err := p.expect(token.Ident, "expected identifier"); err != nil {
 			return nil, err
 		}
-		a := createParameter(p.curr.Literal)
+		a := ast.CreateParameter(p.curr.Literal)
 		list = append(list, a)
 		p.next()
 		switch p.curr.Type {
@@ -419,7 +364,7 @@ func (p *parser) parseParameters() ([]Expression, error) {
 		if err := p.expect(token.Ident, "expected identifier"); err != nil {
 			return nil, err
 		}
-		a := createParameter(p.curr.Literal)
+		a := ast.CreateParameter(p.curr.Literal)
 		p.next()
 		if err := p.expect(token.Assign, "expected '='"); err != nil {
 			return nil, err
@@ -429,7 +374,7 @@ func (p *parser) parseParameters() ([]Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		a.expr = expr
+		a.Expr = expr
 		list = append(list, a)
 		switch p.curr.Type {
 		case token.Comma:
@@ -452,31 +397,28 @@ func (p *parser) parseParameters() ([]Expression, error) {
 	return list, nil
 }
 
-func (p *parser) parseFunction() (Expression, error) {
+func (p *Parser) parseFunction() (ast.Expression, error) {
 	p.next()
-	fn := function{
-		ident: p.curr.Literal,
-	}
+	fn := ast.CreateFunction(p.curr.Literal)
 	p.next()
 	args, err := p.parseParameters()
 	if err != nil {
 		return nil, err
 	}
-	fn.params = args
+	fn.Params = args
 
-	fn.body, err = p.parseBlock()
-	if err != nil {
+	if fn.Body, err = p.parseBlock(); err != nil {
 		return nil, err
 	}
 	return fn, nil
 }
 
-func (p *parser) parseBlock() (Expression, error) {
+func (p *Parser) parseBlock() (ast.Expression, error) {
 	if err := p.expect(token.Lcurly, "expected '{"); err != nil {
 		return nil, err
 	}
 	p.next()
-	var list []Expression
+	var list []ast.Expression
 	for !p.is(token.Rcurly) && !p.done() {
 		e, err := p.parse(powLowest)
 		if err != nil {
@@ -492,26 +434,21 @@ func (p *parser) parseBlock() (Expression, error) {
 		return nil, err
 	}
 	p.next()
-	switch len(list) {
-	case 1:
-		return list[0], nil
-	default:
-		return script{list: list}, nil
-	}
+	return ast.CreateScriptFromList(list), nil
 }
 
-func (p *parser) parseIf() (Expression, error) {
+func (p *Parser) parseIf() (ast.Expression, error) {
 	p.next()
 
 	var (
-		expr test
+		expr ast.Test
 		err  error
 	)
-	expr.cdt, err = p.parse(powLowest)
+	expr.Cdt, err = p.parse(powLowest)
 	if err != nil {
 		return nil, err
 	}
-	expr.csq, err = p.parseBlock()
+	expr.Csq, err = p.parseBlock()
 	if err != nil {
 		return nil, err
 	}
@@ -519,9 +456,9 @@ func (p *parser) parseIf() (Expression, error) {
 		p.next()
 		switch p.curr.Type {
 		case token.Lcurly:
-			expr.alt, err = p.parseBlock()
+			expr.Alt, err = p.parseBlock()
 		case token.Keyword:
-			expr.alt, err = p.parseKeyword()
+			expr.Alt, err = p.parseKeyword()
 		default:
 		}
 	}
@@ -531,18 +468,18 @@ func (p *parser) parseIf() (Expression, error) {
 	return expr, nil
 }
 
-func (p *parser) parseWhile() (Expression, error) {
+func (p *Parser) parseWhile() (ast.Expression, error) {
 	p.next()
 
 	var (
-		expr while
+		expr ast.While
 		err  error
 	)
-	expr.cdt, err = p.parse(powLowest)
+	expr.Cdt, err = p.parse(powLowest)
 	if err != nil {
 		return nil, err
 	}
-	expr.body, err = p.parseBlock()
+	expr.Body, err = p.parseBlock()
 	if err != nil {
 		return nil, err
 	}
@@ -552,38 +489,35 @@ func (p *parser) parseWhile() (Expression, error) {
 	return expr, nil
 }
 
-func (p *parser) parseReturn() (Expression, error) {
+func (p *Parser) parseReturn() (ast.Expression, error) {
 	p.next()
 	if p.is(token.EOL) || p.is(token.EOF) {
-		return returned{}, nil
+		return ast.CreateReturn(nil), nil
 	}
 	right, err := p.parse(powLowest)
 	if err != nil {
 		return nil, err
 	}
-	expr := returned{
-		right: right,
-	}
-	return expr, nil
+	return ast.CreateReturn(right), nil
 }
 
-func (p *parser) parseBreak() (Expression, error) {
+func (p *Parser) parseBreak() (ast.Expression, error) {
 	p.next()
-	return breaked{}, nil
+	return ast.Break{}, nil
 }
 
-func (p *parser) parseContinue() (Expression, error) {
+func (p *Parser) parseContinue() (ast.Expression, error) {
 	p.next()
-	return continued{}, nil
+	return ast.Continue{}, nil
 }
 
-func (p *parser) parseTernary(left Expression) (Expression, error) {
+func (p *Parser) parseTernary(left ast.Expression) (ast.Expression, error) {
 	var err error
-	expr := test{
-		cdt: left,
+	expr := ast.Test{
+		Cdt: left,
 	}
 	p.next()
-	if expr.csq, err = p.parse(powLowest); err != nil {
+	if expr.Csq, err = p.parse(powLowest); err != nil {
 		return nil, err
 	}
 	if err := p.expect(token.Colon, "expected ':'"); err != nil {
@@ -591,51 +525,30 @@ func (p *parser) parseTernary(left Expression) (Expression, error) {
 	}
 	p.next()
 
-	if expr.alt, err = p.parse(powLowest); err != nil {
+	if expr.Alt, err = p.parse(powLowest); err != nil {
 		return nil, err
 	}
 	return expr, nil
 }
 
-func (p *parser) parsePath(left Expression) (Expression, error) {
-	v, ok := left.(variable)
+func (p *Parser) parsePath(left ast.Expression) (ast.Expression, error) {
+	v, ok := left.(ast.Variable)
 	if !ok {
-		return nil, fmt.Errorf("unexpected path operator")
-	}
-	p.next()
-	a := path{
-		ident: v.ident,
-	}
-	right, err := p.parse(powLowest)
-	if err != nil {
-		return nil, err
-	}
-	a.right = right
-	return a, nil
-}
-
-func (p *parser) parseWalrus(left Expression) (Expression, error) {
-	switch left.(type) {
-	case variable, index:
-	default:
-		return nil, fmt.Errorf("unexpected assignment operator")
+		return nil, p.parseError("unexpected path operator")
 	}
 	p.next()
 	right, err := p.parse(powLowest)
 	if err != nil {
 		return nil, err
 	}
-	expr := walrus{
-		assign: createAssign(left, right),
-	}
-	return expr, nil
+	return ast.CreatePath(v.Ident, right), nil
 }
 
-func (p *parser) parseAssign(left Expression) (Expression, error) {
+func (p *Parser) parseAssign(left ast.Expression) (ast.Expression, error) {
 	switch left.(type) {
-	case variable, index:
+	case ast.Variable, ast.Index:
 	default:
-		return nil, fmt.Errorf("unexpected assignment operator")
+		return nil, p.parseError("unexpected assignment operator")
 	}
 	op := p.curr.Type
 	p.next()
@@ -643,7 +556,7 @@ func (p *parser) parseAssign(left Expression) (Expression, error) {
 	if err != nil {
 		return nil, err
 	}
-	expr := createAssign(left, right)
+	expr := ast.CreateAssign(left, right)
 	if op != token.Assign {
 		switch op {
 		case token.AddAssign:
@@ -669,19 +582,19 @@ func (p *parser) parseAssign(left Expression) (Expression, error) {
 		default:
 			return nil, p.parseError("compound assignment operator not recognized")
 		}
-		expr.right = binary{
-			op:    op,
-			left:  left,
-			right: right,
+		expr.Right = ast.Binary{
+			Op:    op,
+			Left:  left,
+			Right: right,
 		}
 	}
 	return expr, nil
 }
 
-func (p *parser) parseInfix(left Expression) (Expression, error) {
-	expr := binary{
-		op:   p.curr.Type,
-		left: left,
+func (p *Parser) parseInfix(left ast.Expression) (ast.Expression, error) {
+	expr := ast.Binary{
+		Op:   p.curr.Type,
+		Left: left,
 	}
 	pow := powers.Get(p.curr.Type)
 	p.next()
@@ -689,18 +602,18 @@ func (p *parser) parseInfix(left Expression) (Expression, error) {
 	if err != nil {
 		return nil, err
 	}
-	expr.right = right
+	expr.Right = right
 	return expr, nil
 }
 
-func (p *parser) parseIndex(left Expression) (Expression, error) {
+func (p *Parser) parseIndex(left ast.Expression) (ast.Expression, error) {
 	switch left.(type) {
-	case array, dict, index, variable, literal:
+	case ast.Array, ast.Dict, ast.Index, ast.Variable, ast.Literal:
 	default:
 		return nil, p.parseError("unexpected index operator")
 	}
-	ix := index{
-		arr: left,
+	ix := ast.Index{
+		Arr: left,
 	}
 	p.next()
 	for !p.is(token.Rsquare) && !p.done() {
@@ -708,7 +621,7 @@ func (p *parser) parseIndex(left Expression) (Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		ix.list = append(ix.list, expr)
+		ix.List = append(ix.List, expr)
 		switch p.curr.Type {
 		case token.Comma:
 			if p.peekIs(token.Rsquare) {
@@ -723,22 +636,22 @@ func (p *parser) parseIndex(left Expression) (Expression, error) {
 	if err := p.expect(token.Rsquare, "expected ']'"); err != nil {
 		return nil, err
 	}
-	if len(ix.list) == 0 {
+	if len(ix.List) == 0 {
 		return nil, p.parseError("empty index")
 	}
 	p.next()
 	return ix, nil
 }
 
-func (p *parser) parseCompitem(until rune) ([]compitem, error) {
-	var list []compitem
+func (p *Parser) parseCompitem(until rune) ([]ast.CompItem, error) {
+	var list []ast.CompItem
 	p.next()
 	for !p.is(until) && !p.done() {
-		var item compitem
+		var item ast.CompItem
 		if err := p.expect(token.Ident, "expected identifier"); err != nil {
 			return nil, err
 		}
-		item.ident = p.curr.Literal
+		item.Ident = p.curr.Literal
 		p.next()
 		if err := p.expectKW(token.KwIn, "expected 'in' keyword"); err != nil {
 			return nil, err
@@ -748,14 +661,14 @@ func (p *parser) parseCompitem(until rune) ([]compitem, error) {
 		if err != nil {
 			return nil, err
 		}
-		item.iter = expr
+		item.Iter = expr
 		for p.is(token.Keyword) && p.curr.Literal == token.KwIf {
 			p.next()
 			expr, err := p.parse(powLowest)
 			if err != nil {
 				return nil, err
 			}
-			item.cdt = append(item.cdt, expr)
+			item.Cdt = append(item.Cdt, expr)
 		}
 		switch p.curr.Type {
 		case token.Keyword:
@@ -776,29 +689,29 @@ func (p *parser) parseCompitem(until rune) ([]compitem, error) {
 	return list, nil
 }
 
-func (p *parser) parseListcomp(left Expression) (Expression, error) {
-	cmp := listcomp{
-		body: left,
+func (p *Parser) parseListcomp(left ast.Expression) (ast.Expression, error) {
+	cmp := ast.ListComp{
+		Body: left,
 	}
 	list, err := p.parseCompitem(token.Rsquare)
 	if err == nil {
-		cmp.list = list
+		cmp.List = list
 	}
 	return cmp, err
 }
 
-func (p *parser) parseArray() (Expression, error) {
+func (p *Parser) parseArray() (ast.Expression, error) {
 	p.next()
-	var arr array
+	var arr ast.Array
 	for !p.is(token.Rsquare) && !p.done() {
 		e, err := p.parse(powLowest)
 		if err != nil {
 			return nil, err
 		}
-		if err := p.expectKW(token.KwFor, ""); len(arr.list) == 0 && err == nil {
+		if err := p.expectKW(token.KwFor, ""); len(arr.List) == 0 && err == nil {
 			return p.parseListcomp(e)
 		}
-		arr.list = append(arr.list, e)
+		arr.List = append(arr.List, e)
 		switch p.curr.Type {
 		case token.Comma:
 			p.next()
@@ -815,22 +728,22 @@ func (p *parser) parseArray() (Expression, error) {
 	return arr, nil
 }
 
-func (p *parser) parseDictcomp(key, val Expression) (Expression, error) {
-	cmp := dictcomp{
-		key: key,
-		val: val,
+func (p *Parser) parseDictcomp(key, val ast.Expression) (ast.Expression, error) {
+	cmp := ast.DictComp{
+		Key: key,
+		Val: val,
 	}
 	list, err := p.parseCompitem(token.Rcurly)
 	if err == nil {
-		cmp.list = list
+		cmp.List = list
 	}
 	return cmp, err
 }
 
-func (p *parser) parseDict() (Expression, error) {
+func (p *Parser) parseDict() (ast.Expression, error) {
 	p.next()
-	var d dict
-	d.list = make(map[Expression]Expression)
+	var d ast.Dict
+	d.List = make(map[ast.Expression]ast.Expression)
 	for !p.is(token.Rcurly) && !p.done() {
 		k, err := p.parse(powLowest)
 		if err != nil {
@@ -844,10 +757,10 @@ func (p *parser) parseDict() (Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := p.expectKW(token.KwFor, ""); len(d.list) == 0 && err == nil {
+		if err := p.expectKW(token.KwFor, ""); len(d.List) == 0 && err == nil {
 			return p.parseDictcomp(k, v)
 		}
-		d.list[k] = v
+		d.List[k] = v
 		switch p.curr.Type {
 		case token.Comma:
 			p.next()
@@ -864,8 +777,8 @@ func (p *parser) parseDict() (Expression, error) {
 	return d, nil
 }
 
-func (p *parser) parsePrefix() (Expression, error) {
-	var expr Expression
+func (p *Parser) parsePrefix() (ast.Expression, error) {
+	var expr ast.Expression
 	switch p.curr.Type {
 	case token.Sub, token.Not, token.BinNot:
 		op := p.curr.Type
@@ -875,36 +788,36 @@ func (p *parser) parsePrefix() (Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		expr = unary{
-			op:    op,
-			right: right,
+		expr = ast.Unary{
+			Op:    op,
+			Right: right,
 		}
 	case token.Literal:
-		expr = createLiteral(p.curr.Literal)
+		expr = ast.CreateLiteral(p.curr.Literal)
 		p.next()
 	case token.Double:
 		n, err := strconv.ParseFloat(p.curr.Literal, 64)
 		if err != nil {
 			return nil, err
 		}
-		expr = createDouble(n)
+		expr = ast.CreateDouble(n)
 		p.next()
 	case token.Integer:
 		n, err := strconv.ParseInt(p.curr.Literal, 0, 64)
 		if err != nil {
 			return nil, err
 		}
-		expr = createInteger(n)
+		expr = ast.CreateInteger(n)
 		p.next()
 	case token.Ident:
-		expr = createVariable(p.curr.Literal)
+		expr = ast.CreateVariable(p.curr.Literal)
 		p.next()
 	case token.Boolean:
 		b, err := strconv.ParseBool(p.curr.Literal)
 		if err != nil {
 			return nil, err
 		}
-		expr = createBoolean(b)
+		expr = ast.CreateBoolean(b)
 		p.next()
 	default:
 		return nil, p.parseError("prefix operator not recognized")
@@ -912,14 +825,14 @@ func (p *parser) parsePrefix() (Expression, error) {
 	return expr, nil
 }
 
-func (p *parser) parseCall(left Expression) (Expression, error) {
-	v, ok := left.(variable)
+func (p *Parser) parseCall(left ast.Expression) (ast.Expression, error) {
+	v, ok := left.(ast.Variable)
 	if !ok {
 		return nil, p.parseError("unexpected call operator")
 	}
 	p.next()
-	expr := call{
-		ident: v.ident,
+	expr := ast.Call{
+		Ident: v.Ident,
 	}
 	for !p.is(token.Rparen) && !p.done() {
 		if p.peekIs(token.Assign) {
@@ -929,7 +842,7 @@ func (p *parser) parseCall(left Expression) (Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		expr.args = append(expr.args, e)
+		expr.Args = append(expr.Args, e)
 		switch p.curr.Type {
 		case token.Comma:
 			if p.peekIs(token.Rparen) {
@@ -945,7 +858,7 @@ func (p *parser) parseCall(left Expression) (Expression, error) {
 		if err := p.expect(token.Ident, "expected identifier"); err != nil {
 			return nil, err
 		}
-		a := createParameter(p.curr.Literal)
+		a := ast.CreateParameter(p.curr.Literal)
 		p.next()
 		if err := p.expect(token.Assign, "expected '='"); err != nil {
 			return nil, err
@@ -955,8 +868,8 @@ func (p *parser) parseCall(left Expression) (Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		a.expr = val
-		expr.args = append(expr.args, a)
+		a.Expr = val
+		expr.Args = append(expr.Args, a)
 		switch p.curr.Type {
 		case token.Comma:
 			if p.peekIs(token.Rparen) {
@@ -975,7 +888,7 @@ func (p *parser) parseCall(left Expression) (Expression, error) {
 	return expr, nil
 }
 
-func (p *parser) parseGroup() (Expression, error) {
+func (p *Parser) parseGroup() (ast.Expression, error) {
 	p.next()
 	expr, err := p.parse(powLowest)
 	if err != nil {
@@ -988,7 +901,7 @@ func (p *parser) parseGroup() (Expression, error) {
 	return expr, nil
 }
 
-func (p *parser) getPrefixExpr() (Expression, error) {
+func (p *Parser) getPrefixExpr() (ast.Expression, error) {
 	fn, ok := p.prefix[p.curr.Type]
 	if !ok {
 		return nil, p.parseError("unary operator not recognized")
@@ -996,7 +909,7 @@ func (p *parser) getPrefixExpr() (Expression, error) {
 	return fn()
 }
 
-func (p *parser) getInfixExpr(left Expression) (Expression, error) {
+func (p *Parser) getInfixExpr(left ast.Expression) (ast.Expression, error) {
 	fn, ok := p.infix[p.curr.Type]
 	if !ok {
 		return nil, p.parseError("binary operator not recognized")
@@ -1004,22 +917,22 @@ func (p *parser) getInfixExpr(left Expression) (Expression, error) {
 	return fn(left)
 }
 
-func (p *parser) peekIs(r rune) bool {
+func (p *Parser) peekIs(r rune) bool {
 	return p.peek.Type == r
 }
 
-func (p *parser) is(r rune) bool {
+func (p *Parser) is(r rune) bool {
 	return p.curr.Type == r
 }
 
-func (p *parser) expect(r rune, msg string) error {
+func (p *Parser) expect(r rune, msg string) error {
 	if !p.is(r) {
 		return p.parseError(msg)
 	}
 	return nil
 }
 
-func (p *parser) expectKW(kw, msg string) error {
+func (p *Parser) expectKW(kw, msg string) error {
 	if err := p.expect(token.Keyword, msg); err != nil {
 		return err
 	}
@@ -1029,7 +942,7 @@ func (p *parser) expectKW(kw, msg string) error {
 	return nil
 }
 
-func (p *parser) eol() error {
+func (p *Parser) eol() error {
 	switch p.curr.Type {
 	case token.EOL:
 		p.next()
@@ -1040,22 +953,22 @@ func (p *parser) eol() error {
 	return nil
 }
 
-func (p *parser) skip(r rune) {
+func (p *Parser) skip(r rune) {
 	for p.is(r) {
 		p.next()
 	}
 }
 
-func (p *parser) done() bool {
+func (p *Parser) done() bool {
 	return p.is(token.EOF)
 }
 
-func (p *parser) next() {
+func (p *Parser) next() {
 	p.curr = p.peek
 	p.peek = p.scan.Scan()
 }
 
-func (p *parser) parseError(message string) error {
+func (p *Parser) parseError(message string) error {
 	return ParseError{
 		Token:   p.curr,
 		File:    p.file,

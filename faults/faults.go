@@ -1,20 +1,19 @@
-package buddy
+package faults
 
 import (
 	"errors"
 	"fmt"
 	"io"
-	"path/filepath"
 	"strings"
 
-	"github.com/midbel/buddy/token"
+	"github.com/midbel/buddy/parse"
 )
 
 func PrintError(w io.Writer, err error) {
 	if err == nil {
 		return
 	}
-	var perr ParseError
+	var perr parse.ParseError
 	if errors.As(err, &perr) {
 		printParseError(w, perr)
 	} else {
@@ -22,25 +21,9 @@ func PrintError(w io.Writer, err error) {
 	}
 }
 
-type ParseError struct {
-	token.Token
-	File    string
-	Line    string
-	Message string
-}
+type ErrorList []error
 
-func (e ParseError) Error() string {
-	if e.File == "" {
-		e.File = "<input>"
-	} else {
-		e.File = filepath.Base(e.File)
-	}
-	return fmt.Sprintf("%s %s: %s", e.File, e.Position, e.Message)
-}
-
-type errorsList []error
-
-func (e errorsList) Error() string {
+func (e ErrorList) Error() string {
 	var str strings.Builder
 	for i := range e {
 		if i > 0 {
@@ -51,7 +34,7 @@ func (e errorsList) Error() string {
 	return str.String()
 }
 
-func printParseError(w io.Writer, err ParseError) {
+func printParseError(w io.Writer, err parse.ParseError) {
 	var (
 		space = strings.Repeat(" ", err.Token.Position.Column-1)
 		tilde = "^"

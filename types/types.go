@@ -84,6 +84,14 @@ func Or(left, right Primitive) (Primitive, error) {
 	return Bool{value: b}, nil
 }
 
+func IterationError(val Primitive) error {
+	return fmt.Errorf("%w: %s is not iterable", ErrOperation, typeName(val))
+}
+
+func ContainerError(val Primitive) error {
+	return fmt.Errorf("%w: %s can not be used as a container", ErrOperation, typeName(val))
+}
+
 func unsupportedOp(op string, val Primitive) error {
 	return fmt.Errorf("%s: %w for type %s", op, typeName(val))
 }
