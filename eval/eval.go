@@ -225,11 +225,75 @@ func evalBinary(b ast.Binary, env *types.Environ) (types.Primitive, error) {
 }
 
 func evalListComp(lc ast.ListComp, env *types.Environ) (types.Primitive, error) {
-	return nil, errImplemented
+	var (
+		arr []types.Primitive
+		err error
+	)
+	err = evalCompItem(lc.List, types.EnclosedEnv(env), func(sub *types.Environ) error {
+		res, err := eval(lc.Body, sub)
+		if err == nil {
+			arr = append(arr, res)
+		}
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return types.CreateArray(arr), nil
 }
 
 func evalDictComp(dc ast.DictComp, env *types.Environ) (types.Primitive, error) {
-	return nil, errImplemented
+	var (
+		dict = types.CreateDict()
+		err  error
+	)
+	err = evalCompItem(dc.List, types.EnclosedEnv(env), func(sub *types.Environ) error {
+		key, err := eval(dc.Key, sub)
+		if err != nil {
+			return err
+		}
+		val, err := eval(dc.Val, sub)
+		if err != nil {
+			return err
+		}
+		dict.(types.Dict).Set(key, val)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return dict, nil
+}
+
+func evalCompItem(cis []ast.CompItem, env *types.Environ, do func(env *types.Environ) error) error {
+	if len(cis) == 0 {
+		return nil
+	}
+	curr := slices.Fst(cis)
+	it, err := eval(curr.Iter, env)
+	if err != nil {
+		return err
+	}
+	iter, ok := it.(types.Iterable)
+	if !ok {
+		return types.IterationError(it)
+	}
+	return iter.Iter(func(p types.Primitive) error {
+		env.Define(curr.Ident, p)
+		for i := range curr.Cdt {
+			res, err := eval(curr.Cdt[i], env)
+			if err != nil {
+				return err
+			}
+			if !res.True() {
+				return nil
+			}
+		}
+		if len(cis) > 1 {
+			return evalCompItem(slices.Rest(cis), env, do)
+		}
+		return do(env)
+	})
 }
 
 func evalTest(t ast.Test, env *types.Environ) (types.Primitive, error) {

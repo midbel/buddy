@@ -25,34 +25,6 @@ type Container interface {
 	Get(Primitive) (Primitive, error)
 }
 
-type Comparable interface {
-	Eq(Primitive) (Primitive, error)
-	Ne(Primitive) (Primitive, error)
-	Lt(Primitive) (Primitive, error)
-	Le(Primitive) (Primitive, error)
-	Gt(Primitive) (Primitive, error)
-	Ge(Primitive) (Primitive, error)
-}
-
-type Calculable interface {
-	Rev() (Primitive, error)
-	Add(Primitive) (Primitive, error)
-	Sub(Primitive) (Primitive, error)
-	Div(Primitive) (Primitive, error)
-	Mod(Primitive) (Primitive, error)
-	Mul(Primitive) (Primitive, error)
-	Pow(Primitive) (Primitive, error)
-}
-
-type BinaryCalculable interface {
-	Lshift(Primitive) (Primitive, error)
-	Rshift(Primitive) (Primitive, error)
-	And(Primitive) (Primitive, error)
-	Or(Primitive) (Primitive, error)
-	Xor(Primitive) (Primitive, error)
-	Bnot() Primitive
-}
-
 type Primitive interface {
 	fmt.Stringer
 	Raw() any
