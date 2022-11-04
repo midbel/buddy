@@ -177,9 +177,9 @@ func printAST(w io.Writer, e Expression, level int) {
 			printAST(w, e.List[i], level+1)
 		}
 	case Index:
+		printAST(w, e.Arr, level)
 		fmt.Fprintf(w, "%sindex", prefix)
 		fmt.Fprintln(w)
-		printAST(w, e.Arr, level+1)
 		for i := range e.List {
 			printAST(w, e.List[i], level+1)
 		}
