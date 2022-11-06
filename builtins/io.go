@@ -14,7 +14,7 @@ var iomod = Module{
 		"print": {
 			Name:     "print",
 			Variadic: true,
-			Call:     runPrint,
+			Run:      runPrint,
 		},
 		"printf": {
 			Name:     "printf",
@@ -22,7 +22,7 @@ var iomod = Module{
 			Params: []Parameter{
 				createPositional("format"),
 			},
-			Call: runPrintf,
+			Run: runPrintf,
 		},
 	},
 }

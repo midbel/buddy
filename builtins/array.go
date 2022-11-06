@@ -13,14 +13,14 @@ var arrmod = Module{
 			Params: []Parameter{
 				createPositional("array"),
 			},
-			Call: runFirst,
+			Run: runFirst,
 		},
 		"last": {
 			Name: "last",
 			Params: []Parameter{
 				createPositional("array"),
 			},
-			Call: runLast,
+			Run: runLast,
 		},
 	},
 }

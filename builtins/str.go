@@ -16,14 +16,14 @@ var strmod = Module{
 			Params: []Parameter{
 				createPositional("str"),
 			},
-			Call: runUpper,
+			Run: runUpper,
 		},
 		"lower": {
 			Name: "lower",
 			Params: []Parameter{
 				createPositional("str"),
 			},
-			Call: runLower,
+			Run: runLower,
 		},
 		"format": {
 			Name:     "format",
@@ -31,23 +31,7 @@ var strmod = Module{
 			Params: []Parameter{
 				createPositional("pattern"),
 			},
-			Call: runFormat,
-		},
-		"index": {
-			Name: "index",
-			Params: []Parameter{
-				createPositional("str"),
-				createPositional("search"),
-			},
-			Call: nil,
-		},
-		"substr": {
-			Name: "substr",
-			Params: []Parameter{
-				createPositional("str"),
-				createPositional("index"),
-			},
-			Call: nil,
+			Run: runFormat,
 		},
 	},
 }

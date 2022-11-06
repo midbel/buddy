@@ -36,7 +36,10 @@ func (m Module) Filter(names map[string]string) (Module, error) {
 	return mod, nil
 }
 
-func (m Module) Lookup(name string) (Builtin, error) {
+func (m Module) Lookup(mod, name string) (types.Callable, error) {
+	if mod != "" {
+		return nil, fmt.Errorf("%s: no sub module defined", name)
+	}
 	b, ok := m.Builtins[name]
 	if !ok {
 		return b, fmt.Errorf("%s: function not defined", name)
@@ -68,10 +71,14 @@ type Builtin struct {
 	Name     string
 	Variadic bool
 	Params   []Parameter
-	Call     BuiltinFunc
+	Run      BuiltinFunc
 }
 
-func (b Builtin) Run(args ...types.Primitive) (types.Primitive, error) {
+func (b Builtin) Arity() int {
+	return len(b.Params)
+}
+
+func (b Builtin) Call(args ...types.Primitive) (types.Primitive, error) {
 	if b.Call == nil {
 		return nil, fmt.Errorf("%s can not be called", b.Name)
 	}
@@ -80,7 +87,7 @@ func (b Builtin) Run(args ...types.Primitive) (types.Primitive, error) {
 			return nil, fmt.Errorf("%s: not enough argument given", b.Name)
 		}
 	}
-	res, err := b.Call(args...)
+	res, err := b.Run(args...)
 	if err != nil {
 		err = fmt.Errorf("%s: %w", b.Name, err)
 	}
@@ -102,59 +109,64 @@ var defmod = Module{
 			Params: []Parameter{
 				createPositional("value"),
 			},
-			Call: runInt,
+			Run: runInt,
 		},
 		"float": {
 			Name: "runFloat",
 			Params: []Parameter{
 				createPositional("value"),
 			},
-			Call: runFloat,
+			Run: runFloat,
 		},
 		"string": {
 			Name: "string",
 			Params: []Parameter{
 				createPositional("value"),
 			},
-			Call: runString,
+			Run: runString,
 		},
 		"bool": {
 			Name: "string",
 			Params: []Parameter{
 				createPositional("value"),
 			},
-			Call: runBool,
+			Run: runBool,
 		},
 		"len": {
 			Name: "len",
 			Params: []Parameter{
 				createPositional("value"),
 			},
-			Call: runLen,
+			Run: runLen,
 		},
 		"exit": {
 			Name: "exit",
 			Params: []Parameter{
 				createPositional("code"),
 			},
-			Call: runExit,
+			Run: runExit,
 		},
 		"all": {
 			Name:     "all",
 			Variadic: true,
-			Call:     runAll,
+			Run:      runAll,
 		},
 		"any": {
 			Name:     "any",
 			Variadic: true,
-			Call:     runAny,
+			Run:      runAny,
 		},
 		"typeof": {
 			Name: "typeof",
 			Params: []Parameter{
 				createPositional("value"),
 			},
-			Call: runTypeof,
+			Run: runTypeof,
+		},
+		"dir": {
+			Name:     "dir",
+			Variadic: true,
+			Run:      nil,
 		},
 	},
 }
@@ -172,8 +184,8 @@ func LookupModule(name string) (Module, error) {
 	return Module{}, fmt.Errorf("%s: undefined module", name)
 }
 
-func LookupBuiltin(name string) (Builtin, error) {
-	return defmod.Lookup(name)
+func LookupBuiltin(ident string) (types.Callable, error) {
+	return defmod.Lookup("", ident)
 }
 
 func runTypeof(args ...types.Primitive) (types.Primitive, error) {

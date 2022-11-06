@@ -9,6 +9,10 @@ type Callable interface {
 	Arity() int
 }
 
+type Module interface {
+	Lookup(string, string) (Callable, error)
+}
+
 type Environ struct {
 	parent *Environ
 	values map[string]value
