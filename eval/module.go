@@ -96,7 +96,7 @@ func (c userCallable) Call(ctx types.Context, args []types.Argument) (types.Prim
 	defer func() {
 		i.Environ = old
 	}()
-	i.Environ = types.EnclosedEnv(old)
+	i.Environ = types.EmptyEnv()
 	if err := c.setDefault(i); err != nil {
 		return nil, err
 	}

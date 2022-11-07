@@ -58,6 +58,9 @@ func EnclosedEnv(parent *Environ) *Environ {
 func (e *Environ) Resolve(name string) (Primitive, error) {
 	v, ok := e.values[name]
 	if !ok {
+		if e.parent != nil {
+			return e.parent.Resolve(name)
+		}
 		return nil, fmt.Errorf("%s undefined variable", name)
 	}
 	return v.value, nil
