@@ -45,14 +45,28 @@ func New(env *types.Environ) *Interpreter {
 		MaxDepth: LimitDepth,
 		stack:    slices.New[types.Module](),
 	}
+	mod := emptyModule("main")
+	i.stack.Push(mod)
 	return &i
+}
+
+func (i *Interpreter) Eval(r io.Reader) (types.Primitive, error) {
+	expr, err := parse.New(r).Parse()
+	if err != nil {
+		return nil, err
+	}
+	return eval(expr, i)
+}
+
+func (i *Interpreter) EvalString(str string) (types.Primitive, error) {
+	return i.Eval(strings.NewReader(str))
 }
 
 func (i *Interpreter) Load(ident []string, alias string) error {
 	if mod, err := builtins.LookupModule(slices.Lst(ident)); err == nil {
-		tmp := i.stack.Peek()
+		tmp := i.stack.Top()
 		if reg, ok := tmp.(mutableModule); !ok {
-			return fmt.Errorf("module can not be imported")
+			return fmt.Errorf("builtin module can not be imported")
 		} else {
 			reg.Register(alias, mod)
 		}
@@ -89,9 +103,9 @@ func (i *Interpreter) Load(ident []string, alias string) error {
 		mod.Append(ident, call)
 	}
 
-	tmp := i.stack.Peek()
+	tmp := i.stack.Top()
 	if reg, ok := tmp.(mutableModule); !ok {
-		return fmt.Errorf("module can not be imported")
+		return fmt.Errorf("user module can not be imported")
 	} else {
 		reg.Register(alias, mod)
 	}
@@ -109,7 +123,7 @@ func (i *Interpreter) Call(mod, ident string, call CallFunc) (types.Primitive, e
 		err error
 	)
 	if mod == "" {
-		m = i.stack.Peek()
+		m = i.stack.Top()
 	} else {
 		m, err = i.lookupModule(mod)
 		if err != nil {
@@ -119,6 +133,10 @@ func (i *Interpreter) Call(mod, ident string, call CallFunc) (types.Primitive, e
 		defer i.stack.Pop()
 	}
 	fn, err := m.Lookup("", ident)
+	if err == nil {
+		return call(fn)
+	}
+	fn, err = builtins.LookupBuiltin(ident)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +145,7 @@ func (i *Interpreter) Call(mod, ident string, call CallFunc) (types.Primitive, e
 
 func (i *Interpreter) Lookup(mod, ident string) (types.Callable, error) {
 	if mod == "" {
-		return i.stack.Peek().Lookup("", ident)
+		return i.stack.Top().Lookup("", ident)
 	}
 	m, err := i.lookupModule(mod)
 	if err != nil {
@@ -138,7 +156,7 @@ func (i *Interpreter) Lookup(mod, ident string) (types.Callable, error) {
 
 func (i *Interpreter) lookupModule(ident string) (types.Module, error) {
 	var (
-		curr    = i.stack.Peek()
+		curr    = i.stack.Top()
 		get, ok = curr.(mutableModule)
 	)
 	if !ok {

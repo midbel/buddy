@@ -31,7 +31,10 @@ func EvalEnv(r io.Reader, env *types.Environ) (types.Primitive, error) {
 	}
 	bud := New(env)
 	if s, ok := expr.(ast.Script); ok {
-		mod := emptyModule("main")
+		mod, ok := bud.stack.Top().(*userModule)
+		if !ok {
+			return nil, fmt.Errorf("fail to initialize main module")
+		}
 		for k, expr := range s.Symbols {
 			call, err := callableFromExpression(expr)
 			if err != nil {
@@ -41,7 +44,6 @@ func EvalEnv(r io.Reader, env *types.Environ) (types.Primitive, error) {
 				return nil, err
 			}
 		}
-		bud.stack.Push(mod)
 	}
 	return eval(expr, bud)
 }

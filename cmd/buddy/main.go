@@ -11,7 +11,6 @@ import (
 	"github.com/midbel/buddy/builtins"
 	"github.com/midbel/buddy/eval"
 	"github.com/midbel/buddy/faults"
-	"github.com/midbel/buddy/types"
 )
 
 func main() {
@@ -50,7 +49,7 @@ func interactive(r io.Reader) {
 	var (
 		cmd  int
 		scan = bufio.NewScanner(r)
-		env  = types.EmptyEnv()
+		env  = eval.Default()
 	)
 	cmd++
 	io.WriteString(os.Stdout, fmt.Sprintf(in, cmd))
@@ -61,7 +60,7 @@ func interactive(r io.Reader) {
 			io.WriteString(os.Stdout, fmt.Sprintf(in, cmd))
 			continue
 		}
-		res, err := eval.EvalEnv(strings.NewReader(line), env)
+		res, err := env.EvalString(line)
 		if err != nil {
 			if builtins.IsExit(err) {
 				var code int
