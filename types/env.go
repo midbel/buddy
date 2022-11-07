@@ -4,12 +4,20 @@ import (
 	"fmt"
 )
 
+type Context interface {
+	Define(string, Primitive) error
+	Resolve(string) (Primitive, error)
+
+	Lookup(string, string) (Callable, error)
+}
+
 type Callable interface {
-	Call(...Primitive) (Primitive, error)
+	Call(Context, ...Primitive) (Primitive, error)
 	Arity() int
 }
 
 type Module interface {
+	Id() string
 	Lookup(string, string) (Callable, error)
 }
 

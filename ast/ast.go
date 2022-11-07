@@ -187,6 +187,12 @@ type Index struct {
 	List []Expression
 }
 
+func CreateIndex(arr Expression) Index {
+	return Index{
+		Arr: arr,
+	}
+}
+
 func (_ Index) isPrimitive() bool {
 	return false
 }

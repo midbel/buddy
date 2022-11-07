@@ -17,6 +17,10 @@ type Module struct {
 	Builtins map[string]Builtin
 }
 
+func (m Module) Id() string {
+	return m.Name
+}
+
 func (m Module) Filter(names map[string]string) (Module, error) {
 	if len(names) == 0 {
 		return m, nil
@@ -78,7 +82,7 @@ func (b Builtin) Arity() int {
 	return len(b.Params)
 }
 
-func (b Builtin) Call(args ...types.Primitive) (types.Primitive, error) {
+func (b Builtin) Call(_ types.Context, args ...types.Primitive) (types.Primitive, error) {
 	if b.Call == nil {
 		return nil, fmt.Errorf("%s can not be called", b.Name)
 	}
@@ -99,6 +103,7 @@ var Modules = []Module{
 	strmod,
 	defmod,
 	arrmod,
+	timemod,
 }
 
 var defmod = Module{

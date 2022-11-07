@@ -2,6 +2,7 @@ package eval
 
 import (
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/midbel/buddy/ast"
@@ -28,10 +29,24 @@ func EvalEnv(r io.Reader, env *types.Environ) (types.Primitive, error) {
 	if err != nil {
 		return nil, err
 	}
-	return eval(expr, env)
+	bud := New(env)
+	if s, ok := expr.(ast.Script); ok {
+		mod := emptyModule("main")
+		for k, expr := range s.Symbols {
+			call, err := callableFromExpression(expr)
+			if err != nil {
+				return nil, err
+			}
+			if err := mod.Append(k, call); err != nil {
+				return nil, err
+			}
+		}
+		bud.stack.Push(mod)
+	}
+	return eval(expr, bud)
 }
 
-func eval(expr ast.Expression, env *types.Environ) (types.Primitive, error) {
+func eval(expr ast.Expression, env *Interpreter) (types.Primitive, error) {
 	var (
 		res types.Primitive
 		err error
@@ -93,7 +108,7 @@ func eval(expr ast.Expression, env *types.Environ) (types.Primitive, error) {
 	return res, err
 }
 
-func evalArray(a ast.Array, env *types.Environ) (types.Primitive, error) {
+func evalArray(a ast.Array, env *Interpreter) (types.Primitive, error) {
 	var list []types.Primitive
 	for i := range a.List {
 		v, err := eval(a.List[i], env)
@@ -105,7 +120,7 @@ func evalArray(a ast.Array, env *types.Environ) (types.Primitive, error) {
 	return types.CreateArray(list), nil
 }
 
-func evalDict(a ast.Dict, env *types.Environ) (types.Primitive, error) {
+func evalDict(a ast.Dict, env *Interpreter) (types.Primitive, error) {
 	d := types.CreateDict()
 	for k, v := range a.List {
 		kp, err := eval(k, env)
@@ -124,7 +139,7 @@ func evalDict(a ast.Dict, env *types.Environ) (types.Primitive, error) {
 	return d, nil
 }
 
-func evalIndex(i ast.Index, env *types.Environ) (types.Primitive, error) {
+func evalIndex(i ast.Index, env *Interpreter) (types.Primitive, error) {
 	p, err := eval(i.Arr, env)
 	if err != nil {
 		return nil, err
@@ -154,10 +169,16 @@ func evalIndex(i ast.Index, env *types.Environ) (types.Primitive, error) {
 	return c.Get(res)
 }
 
-func evalPath(p ast.Path, env *types.Environ) (types.Primitive, error) {
+func evalPath(p ast.Path, env *Interpreter) (types.Primitive, error) {
 	switch right := p.Right.(type) {
 	case ast.Call:
-		return nil, errImplemented
+		args, err := evalArguments(right, env)
+		if err != nil {
+			return nil, err
+		}
+		return env.Call(p.Ident, right.Ident, func(call types.Callable) (types.Primitive, error) {
+			return call.Call(env, args...)
+		})
 	case ast.Variable:
 		res, err := env.Resolve(p.Ident)
 		if err != nil {
@@ -173,11 +194,43 @@ func evalPath(p ast.Path, env *types.Environ) (types.Primitive, error) {
 	}
 }
 
-func evalCall(c ast.Call, env *types.Environ) (types.Primitive, error) {
-	return nil, errImplemented
+func evalCall(c ast.Call, env *Interpreter) (types.Primitive, error) {
+	args, err := evalArguments(c, env)
+	if err != nil {
+		return nil, err
+	}
+	return env.Call("", c.Ident, func(call types.Callable) (types.Primitive, error) {
+		return call.Call(env, args...)
+	})
 }
 
-func evalAssert(a ast.Assert, env *types.Environ) (types.Primitive, error) {
+func evalArguments(c ast.Call, env *Interpreter) ([]types.Primitive, error) {
+	var (
+		err    error
+		ptr    int
+		values = make([]types.Primitive, len(c.Args))
+	)
+	for ; ptr < len(c.Args); ptr++ {
+		e := c.Args[ptr]
+		if _, ok := e.(ast.Parameter); ok {
+			break
+		}
+		values[ptr], err = eval(e, env)
+		if err != nil {
+			return nil, err
+		}
+	}
+	for ; ptr < len(c.Args); ptr++ {
+		e, ok := c.Args[ptr].(ast.Parameter)
+		if !ok {
+			return nil, fmt.Errorf("positional parameter allows only before keyword parameter")
+		}
+		_ = e
+	}
+	return values, nil
+}
+
+func evalAssert(a ast.Assert, env *Interpreter) (types.Primitive, error) {
 	res, err := eval(a.Expr, env)
 	if err != nil {
 		return nil, err
@@ -188,7 +241,7 @@ func evalAssert(a ast.Assert, env *types.Environ) (types.Primitive, error) {
 	return res, nil
 }
 
-func evalAssign(a ast.Assign, env *types.Environ) (types.Primitive, error) {
+func evalAssign(a ast.Assign, env *Interpreter) (types.Primitive, error) {
 	res, err := eval(a.Right, env)
 	if err != nil {
 		return nil, err
@@ -204,7 +257,7 @@ func evalAssign(a ast.Assign, env *types.Environ) (types.Primitive, error) {
 	return res, err
 }
 
-func evalUnary(u ast.Unary, env *types.Environ) (types.Primitive, error) {
+func evalUnary(u ast.Unary, env *Interpreter) (types.Primitive, error) {
 	res, err := eval(u.Right, env)
 	if err != nil {
 		return nil, err
@@ -212,7 +265,7 @@ func evalUnary(u ast.Unary, env *types.Environ) (types.Primitive, error) {
 	return executeUnary(u.Op, res)
 }
 
-func evalBinary(b ast.Binary, env *types.Environ) (types.Primitive, error) {
+func evalBinary(b ast.Binary, env *Interpreter) (types.Primitive, error) {
 	left, err := eval(b.Left, env)
 	if err != nil {
 		return nil, err
@@ -224,13 +277,19 @@ func evalBinary(b ast.Binary, env *types.Environ) (types.Primitive, error) {
 	return executeBinary(b.Op, left, right)
 }
 
-func evalListComp(lc ast.ListComp, env *types.Environ) (types.Primitive, error) {
+func evalListComp(lc ast.ListComp, env *Interpreter) (types.Primitive, error) {
 	var (
 		arr []types.Primitive
 		err error
+		old = env.Environ
 	)
-	err = evalCompItem(lc.List, types.EnclosedEnv(env), func(sub *types.Environ) error {
-		res, err := eval(lc.Body, sub)
+	defer func() {
+		env.Environ = old
+	}()
+	env.Environ = types.EnclosedEnv(old)
+
+	err = evalCompItem(lc.List, env, func() error {
+		res, err := eval(lc.Body, env)
 		if err == nil {
 			arr = append(arr, res)
 		}
@@ -242,17 +301,23 @@ func evalListComp(lc ast.ListComp, env *types.Environ) (types.Primitive, error) 
 	return types.CreateArray(arr), nil
 }
 
-func evalDictComp(dc ast.DictComp, env *types.Environ) (types.Primitive, error) {
+func evalDictComp(dc ast.DictComp, env *Interpreter) (types.Primitive, error) {
 	var (
 		dict = types.CreateDict()
 		err  error
+		old  = env.Environ
 	)
-	err = evalCompItem(dc.List, types.EnclosedEnv(env), func(sub *types.Environ) error {
-		key, err := eval(dc.Key, sub)
+	defer func() {
+		env.Environ = old
+	}()
+	env.Environ = types.EnclosedEnv(old)
+
+	err = evalCompItem(dc.List, env, func() error {
+		key, err := eval(dc.Key, env)
 		if err != nil {
 			return err
 		}
-		val, err := eval(dc.Val, sub)
+		val, err := eval(dc.Val, env)
 		if err != nil {
 			return err
 		}
@@ -265,7 +330,7 @@ func evalDictComp(dc ast.DictComp, env *types.Environ) (types.Primitive, error) 
 	return dict, nil
 }
 
-func evalCompItem(cis []ast.CompItem, env *types.Environ, do func(env *types.Environ) error) error {
+func evalCompItem(cis []ast.CompItem, env *Interpreter, do func() error) error {
 	if len(cis) == 0 {
 		return nil
 	}
@@ -290,36 +355,46 @@ func evalCompItem(cis []ast.CompItem, env *types.Environ, do func(env *types.Env
 			}
 		}
 		if len(cis) > 1 {
+			old := env.Environ
+			defer func() {
+				env.Environ = old
+			}()
+			env.Environ = types.EnclosedEnv(old)
 			return evalCompItem(slices.Rest(cis), env, do)
 		}
-		return do(env)
+		return do()
 	})
 }
 
-func evalTest(t ast.Test, env *types.Environ) (types.Primitive, error) {
+func evalTest(t ast.Test, env *Interpreter) (types.Primitive, error) {
 	res, err := eval(t.Cdt, env)
 	if err != nil {
 		return nil, err
 	}
+	old := env.Environ
+	defer func() {
+		env.Environ = old
+	}()
+	env.Environ = types.EnclosedEnv(old)
 	if res.True() {
-		return eval(t.Csq, types.EnclosedEnv(env))
+		return eval(t.Csq, env)
 	}
 	if t.Alt == nil {
 		return nil, nil
 	}
-	return eval(t.Alt, types.EnclosedEnv(env))
+	return eval(t.Alt, env)
 }
 
-func evalWhile(w ast.While, env *types.Environ) (types.Primitive, error) {
+func evalWhile(w ast.While, env *Interpreter) (types.Primitive, error) {
 	return evalLoop(w.Body, w.Cdt, nil, env)
 }
 
-func evalFor(f ast.For, env *types.Environ) (types.Primitive, error) {
-	old := env
-	env = types.EnclosedEnv(old)
+func evalFor(f ast.For, env *Interpreter) (types.Primitive, error) {
+	old := env.Environ
 	defer func() {
-		env = old
+		env.Environ = old
 	}()
+	env.Environ = types.EnclosedEnv(old)
 	if f.Init != nil {
 		_, err := eval(f.Init, env)
 		if err != nil {
@@ -329,7 +404,15 @@ func evalFor(f ast.For, env *types.Environ) (types.Primitive, error) {
 	return evalLoop(f.Body, f.Cdt, f.Incr, env)
 }
 
-func evalLoop(body, cdt, incr ast.Expression, env *types.Environ) (types.Primitive, error) {
+func evalLoop(body, cdt, incr ast.Expression, env *Interpreter) (types.Primitive, error) {
+	execBody := func() (types.Primitive, error) {
+		old := env.Environ
+		defer func() {
+			env.Environ = old
+		}()
+		env.Environ = types.EnclosedEnv(old)
+		return eval(body, env)
+	}
 	var (
 		res types.Primitive
 		err error
@@ -342,7 +425,7 @@ func evalLoop(body, cdt, incr ast.Expression, env *types.Environ) (types.Primiti
 		if !tmp.True() {
 			break
 		}
-		res, err = eval(body, types.EnclosedEnv(env))
+		res, err = execBody()
 		if err != nil {
 			if errors.Is(err, errBreak) {
 				break
@@ -362,7 +445,7 @@ func evalLoop(body, cdt, incr ast.Expression, env *types.Environ) (types.Primiti
 	return res, nil
 }
 
-func evalForeach(f ast.ForEach, env *types.Environ) (types.Primitive, error) {
+func evalForeach(f ast.ForEach, env *Interpreter) (types.Primitive, error) {
 	it, err := eval(f.Iter, env)
 	if err != nil {
 		return nil, err
@@ -371,24 +454,25 @@ func evalForeach(f ast.ForEach, env *types.Environ) (types.Primitive, error) {
 	if !ok {
 		return nil, types.IterationError(it)
 	}
-	var (
-		res types.Primitive
-		tmp *types.Environ
-	)
+	var res types.Primitive
 	err = iter.Iter(func(p types.Primitive) error {
-		tmp = types.EnclosedEnv(env)
-		tmp.Define(f.Ident, p)
-		res, err = eval(f.Body, tmp)
+		old := env.Environ
+		defer func() {
+			env.Environ = old
+		}()
+		env.Environ = types.EnclosedEnv(old)
+		env.Define(f.Ident, p)
+		res, err = eval(f.Body, env)
 		return err
 	})
 	return res, err
 }
 
-func evalImport(i ast.Import, env *types.Environ) (types.Primitive, error) {
-	return nil, errImplemented
+func evalImport(i ast.Import, env *Interpreter) (types.Primitive, error) {
+	return nil, env.Load(i.Ident, i.Alias)
 }
 
-func evalScript(s ast.Script, env *types.Environ) (types.Primitive, error) {
+func evalScript(s ast.Script, env *Interpreter) (types.Primitive, error) {
 	var (
 		res types.Primitive
 		err error
@@ -408,7 +492,7 @@ func evalScript(s ast.Script, env *types.Environ) (types.Primitive, error) {
 	return res, err
 }
 
-func evalReturn(ret ast.Return, env *types.Environ) (types.Primitive, error) {
+func evalReturn(ret ast.Return, env *Interpreter) (types.Primitive, error) {
 	var (
 		res types.Primitive
 		err error
@@ -422,7 +506,7 @@ func evalReturn(ret ast.Return, env *types.Environ) (types.Primitive, error) {
 	return res, err
 }
 
-func assignIndex(i ast.Index, value types.Primitive, env *types.Environ) error {
+func assignIndex(i ast.Index, value types.Primitive, env *Interpreter) error {
 	var (
 		res types.Primitive
 		err error
