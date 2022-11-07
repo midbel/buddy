@@ -13,23 +13,23 @@ var strmod = Module{
 	Builtins: map[string]Builtin{
 		"upper": {
 			Name: "upper",
-			Params: []Parameter{
-				createPositional("str"),
+			Params: []types.Argument{
+				types.PosArg("str", 1),
 			},
 			Run: runUpper,
 		},
 		"lower": {
 			Name: "lower",
-			Params: []Parameter{
-				createPositional("str"),
+			Params: []types.Argument{
+				types.PosArg("str", 1),
 			},
 			Run: runLower,
 		},
 		"format": {
 			Name:     "format",
 			Variadic: true,
-			Params: []Parameter{
-				createPositional("pattern"),
+			Params: []types.Argument{
+				types.PosArg("pattern", 1),
 			},
 			Run: runFormat,
 		},

@@ -11,8 +11,26 @@ type Context interface {
 	Lookup(string, string) (Callable, error)
 }
 
+type Argument struct {
+	Name  string
+	Index int
+	Value Primitive
+}
+
+func PosArg(name string, index int) Argument {
+	return NamedArg(name, index, nil)
+}
+
+func NamedArg(name string, index int, value Primitive) Argument {
+	return Argument{
+		Name:  name,
+		Index: index,
+		Value: value,
+	}
+}
+
 type Callable interface {
-	Call(Context, ...Primitive) (Primitive, error)
+	Call(Context, []Argument) (Primitive, error)
 	Arity() int
 }
 

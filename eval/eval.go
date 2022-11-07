@@ -2,7 +2,6 @@ package eval
 
 import (
 	"errors"
-	"fmt"
 	"io"
 
 	"github.com/midbel/buddy/ast"
@@ -177,7 +176,7 @@ func evalPath(p ast.Path, env *Interpreter) (types.Primitive, error) {
 			return nil, err
 		}
 		return env.Call(p.Ident, right.Ident, func(call types.Callable) (types.Primitive, error) {
-			return call.Call(env, args...)
+			return call.Call(env, args)
 		})
 	case ast.Variable:
 		res, err := env.Resolve(p.Ident)
@@ -200,34 +199,28 @@ func evalCall(c ast.Call, env *Interpreter) (types.Primitive, error) {
 		return nil, err
 	}
 	return env.Call("", c.Ident, func(call types.Callable) (types.Primitive, error) {
-		return call.Call(env, args...)
+		return call.Call(env, args)
 	})
 }
 
-func evalArguments(c ast.Call, env *Interpreter) ([]types.Primitive, error) {
+func evalArguments(c ast.Call, env *Interpreter) ([]types.Argument, error) {
 	var (
-		err    error
-		ptr    int
-		values = make([]types.Primitive, len(c.Args))
+		ptr  int
+		args = make([]types.Argument, len(c.Args))
 	)
 	for ; ptr < len(c.Args); ptr++ {
 		e := c.Args[ptr]
-		if _, ok := e.(ast.Parameter); ok {
-			break
-		}
-		values[ptr], err = eval(e, env)
+		tmp, err := eval(e, env)
 		if err != nil {
 			return nil, err
 		}
-	}
-	for ; ptr < len(c.Args); ptr++ {
-		e, ok := c.Args[ptr].(ast.Parameter)
-		if !ok {
-			return nil, fmt.Errorf("positional parameter allows only before keyword parameter")
+		a := types.NamedArg("", ptr, tmp)
+		if p, ok := e.(ast.Parameter); ok {
+			a.Name = p.Ident
 		}
-		_ = e
+		args = append(args, a)
 	}
-	return values, nil
+	return args, nil
 }
 
 func evalAssert(a ast.Assert, env *Interpreter) (types.Primitive, error) {

@@ -10,15 +10,15 @@ var arrmod = Module{
 	Builtins: map[string]Builtin{
 		"first": {
 			Name: "first",
-			Params: []Parameter{
-				createPositional("array"),
+			Params: []types.Argument{
+				types.PosArg("array", 1),
 			},
 			Run: runFirst,
 		},
 		"last": {
 			Name: "last",
-			Params: []Parameter{
-				createPositional("array"),
+			Params: []types.Argument{
+				types.PosArg("array", 1),
 			},
 			Run: runLast,
 		},

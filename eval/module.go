@@ -86,7 +86,7 @@ func callableFromExpression(expr ast.Expression) (types.Callable, error) {
 	return call, nil
 }
 
-func (c userCallable) Call(ctx types.Context, args ...types.Primitive) (types.Primitive, error) {
+func (c userCallable) Call(ctx types.Context, args []types.Argument) (types.Primitive, error) {
 	i, ok := ctx.(*Interpreter)
 	if !ok {
 		return nil, fmt.Errorf("temporary hack")

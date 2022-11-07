@@ -19,8 +19,8 @@ var iomod = Module{
 		"printf": {
 			Name:     "printf",
 			Variadic: true,
-			Params: []Parameter{
-				createPositional("format"),
+			Params: []types.Argument{
+				types.PosArg("format", 1),
 			},
 			Run: runPrintf,
 		},

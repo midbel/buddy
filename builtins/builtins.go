@@ -53,28 +53,10 @@ func (m Module) Lookup(mod, name string) (types.Callable, error) {
 
 type BuiltinFunc func(...types.Primitive) (types.Primitive, error)
 
-type Parameter struct {
-	Name  string
-	Value types.Primitive
-}
-
-func createPositional(name string) Parameter {
-	return Parameter{
-		Name: name,
-	}
-}
-
-func createNamed(name string, value types.Primitive) Parameter {
-	return Parameter{
-		Name:  name,
-		Value: value,
-	}
-}
-
 type Builtin struct {
 	Name     string
 	Variadic bool
-	Params   []Parameter
+	Params   []types.Argument
 	Run      BuiltinFunc
 }
 
@@ -82,7 +64,7 @@ func (b Builtin) Arity() int {
 	return len(b.Params)
 }
 
-func (b Builtin) Call(_ types.Context, args ...types.Primitive) (types.Primitive, error) {
+func (b Builtin) Call(_ types.Context, args []types.Argument) (types.Primitive, error) {
 	if b.Call == nil {
 		return nil, fmt.Errorf("%s can not be called", b.Name)
 	}
@@ -91,7 +73,11 @@ func (b Builtin) Call(_ types.Context, args ...types.Primitive) (types.Primitive
 			return nil, fmt.Errorf("%s: not enough argument given", b.Name)
 		}
 	}
-	res, err := b.Run(args...)
+	var list []types.Primitive
+	for i := range args {
+		list = append(list, args[i].Value)
+	}
+	res, err := b.Run(list...)
 	if err != nil {
 		err = fmt.Errorf("%s: %w", b.Name, err)
 	}
@@ -111,43 +97,43 @@ var defmod = Module{
 	Builtins: map[string]Builtin{
 		"int": {
 			Name: "int",
-			Params: []Parameter{
-				createPositional("value"),
+			Params: []types.Argument{
+				types.PosArg("value", 1),
 			},
 			Run: runInt,
 		},
 		"float": {
 			Name: "runFloat",
-			Params: []Parameter{
-				createPositional("value"),
+			Params: []types.Argument{
+				types.PosArg("value", 1),
 			},
 			Run: runFloat,
 		},
 		"string": {
 			Name: "string",
-			Params: []Parameter{
-				createPositional("value"),
+			Params: []types.Argument{
+				types.PosArg("value", 1),
 			},
 			Run: runString,
 		},
 		"bool": {
 			Name: "string",
-			Params: []Parameter{
-				createPositional("value"),
+			Params: []types.Argument{
+				types.PosArg("value", 1),
 			},
 			Run: runBool,
 		},
 		"len": {
 			Name: "len",
-			Params: []Parameter{
-				createPositional("value"),
+			Params: []types.Argument{
+				types.PosArg("value", 1),
 			},
 			Run: runLen,
 		},
 		"exit": {
 			Name: "exit",
-			Params: []Parameter{
-				createPositional("code"),
+			Params: []types.Argument{
+				types.PosArg("code", 1),
 			},
 			Run: runExit,
 		},
@@ -163,8 +149,8 @@ var defmod = Module{
 		},
 		"typeof": {
 			Name: "typeof",
-			Params: []Parameter{
-				createPositional("value"),
+			Params: []types.Argument{
+				types.PosArg("value", 1),
 			},
 			Run: runTypeof,
 		},
