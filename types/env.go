@@ -8,7 +8,7 @@ type Context interface {
 	Define(string, Primitive) error
 	Resolve(string) (Primitive, error)
 
-	Lookup(string, string) (Callable, error)
+	// Call(string, string, []Argument) (Primitive, error)
 }
 
 type Argument struct {

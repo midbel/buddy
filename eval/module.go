@@ -91,28 +91,43 @@ func (c userCallable) Call(ctx types.Context, args []types.Argument) (types.Prim
 	if !ok {
 		return nil, fmt.Errorf("temporary hack")
 	}
+
 	old := i.Environ
 	defer func() {
 		i.Environ = old
 	}()
 	i.Environ = types.EnclosedEnv(old)
-	for j := range c.fun.Params {
-		var (
-			par, _ = c.fun.Params[j].(ast.Parameter)
-			val    types.Primitive
-			err    error
-		)
-		if j < len(args) {
-			val = args[j]
-		} else if par.Expr != nil {
-			val, err = eval(par.Expr, i)
-		} else {
-			_ = err
+	if err := c.setDefault(i); err != nil {
+		return nil, err
+	}
+	var (
+		ptr int
+		set = make(map[string]struct{})
+	)
+	for ; ptr < len(args); ptr++ {
+		if args[ptr].Name != "" {
+			break
 		}
+		if ptr >= len(c.fun.Params) {
+			return nil, fmt.Errorf("variadic argument not supported")
+		}
+		par := c.fun.Params[ptr].(ast.Parameter)
+		if _, ok := set[par.Ident]; ok {
+			return nil, fmt.Errorf("%s: argument already given", par.Ident)
+		}
+		set[par.Ident] = struct{}{}
+		i.Define(par.Ident, args[ptr].Value)
+	}
+	for ; ptr < len(args); ptr++ {
+		par, err := c.findParameter(args[ptr].Name)
 		if err != nil {
 			return nil, err
 		}
-		i.Define(par.Ident, val)
+		if _, ok := set[par.Ident]; ok {
+			return nil, fmt.Errorf("%s: argument already given", par.Ident)
+		}
+		set[par.Ident] = struct{}{}
+		i.Define(par.Ident, args[ptr].Value)
 	}
 	res, err := eval(c.fun.Body, i)
 	if err != nil {
@@ -123,4 +138,31 @@ func (c userCallable) Call(ctx types.Context, args []types.Argument) (types.Prim
 
 func (c userCallable) Arity() int {
 	return len(c.fun.Params)
+}
+
+func (c userCallable) findParameter(ident string) (ast.Parameter, error) {
+	for _, e := range c.fun.Params {
+		p := e.(ast.Parameter)
+		if p.Ident == ident {
+			return p, nil
+		}
+	}
+	return ast.Parameter{}, fmt.Errorf("%s: parameter not found", ident)
+}
+
+func (c userCallable) setDefault(i *Interpreter) error {
+	for _, e := range c.fun.Params {
+		p, ok := e.(ast.Parameter)
+		if !ok || p.Expr == nil {
+			continue
+		}
+		res, err := eval(p.Expr, i)
+		if err != nil {
+			return err
+		}
+		if err := i.Define(p.Ident, res); err != nil {
+			return err
+		}
+	}
+	return nil
 }

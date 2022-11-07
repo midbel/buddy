@@ -2,6 +2,7 @@ package eval
 
 import (
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/midbel/buddy/ast"
@@ -71,6 +72,8 @@ func eval(expr ast.Expression, env *Interpreter) (types.Primitive, error) {
 		res, err = evalPath(e, env)
 	case ast.Call:
 		res, err = evalCall(e, env)
+	case ast.Parameter:
+		res, err = eval(e.Expr, env)
 	case ast.Assert:
 		res, err = evalAssert(e, env)
 	case ast.Assign:
@@ -102,7 +105,7 @@ func eval(expr ast.Expression, env *Interpreter) (types.Primitive, error) {
 	case ast.Continue:
 		return nil, errContinue
 	default:
-		err = errEval
+		return nil, fmt.Errorf("eval: %w", errEval)
 	}
 	return res, err
 }
@@ -189,7 +192,7 @@ func evalPath(p ast.Path, env *Interpreter) (types.Primitive, error) {
 		}
 		return c.Get(types.CreateString(right.Ident))
 	default:
-		return nil, errEval
+		return nil, fmt.Errorf("path: %w", errEval)
 	}
 }
 
@@ -209,16 +212,26 @@ func evalArguments(c ast.Call, env *Interpreter) ([]types.Argument, error) {
 		args = make([]types.Argument, len(c.Args))
 	)
 	for ; ptr < len(c.Args); ptr++ {
-		e := c.Args[ptr]
-		tmp, err := eval(e, env)
+		if _, ok := c.Args[ptr].(ast.Parameter); ok {
+			break
+		}
+		tmp, err := eval(c.Args[ptr], env)
 		if err != nil {
 			return nil, err
 		}
-		a := types.NamedArg("", ptr, tmp)
-		if p, ok := e.(ast.Parameter); ok {
-			a.Name = p.Ident
+		args[ptr] = types.NamedArg("", ptr, tmp)
+	}
+	for ; ptr < len(c.Args); ptr++ {
+		tmp, err := eval(c.Args[ptr], env)
+		if err != nil {
+			return nil, err
 		}
-		args = append(args, a)
+		args[ptr] = types.NamedArg("", ptr, tmp)
+		if p, ok := c.Args[ptr].(ast.Parameter); !ok {
+			return nil, fmt.Errorf("expected named argument")
+		} else {
+			args[ptr].Name = p.Ident
+		}
 	}
 	return args, nil
 }
@@ -245,7 +258,7 @@ func evalAssign(a ast.Assign, env *Interpreter) (types.Primitive, error) {
 	case ast.Index:
 		err = assignIndex(a, res, env)
 	default:
-		return nil, errEval
+		return nil, fmt.Errorf("assignment: %w", errEval)
 	}
 	return res, err
 }
@@ -512,7 +525,7 @@ func assignIndex(i ast.Index, value types.Primitive, env *Interpreter) error {
 	case ast.Dict:
 		res, err = eval(a, env)
 	default:
-		return errEval
+		return fmt.Errorf("index assignment: %w", errEval)
 	}
 	if err != nil {
 		return err

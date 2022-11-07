@@ -14,6 +14,8 @@ import (
 	"github.com/midbel/slices"
 )
 
+const LimitDepth = 1024
+
 type CallFunc func(call types.Callable) (types.Primitive, error)
 
 type Interpreter struct {
@@ -36,11 +38,12 @@ func Default() *Interpreter {
 
 func New(env *types.Environ) *Interpreter {
 	i := Interpreter{
-		Stdout:  os.Stdout,
-		Stderr:  os.Stderr,
-		Stdin:   os.Stdin,
-		Environ: env,
-		stack:   slices.New[types.Module](),
+		Stdout:   os.Stdout,
+		Stderr:   os.Stderr,
+		Stdin:    os.Stdin,
+		Environ:  env,
+		MaxDepth: LimitDepth,
+		stack:    slices.New[types.Module](),
 	}
 	return &i
 }
@@ -96,6 +99,11 @@ func (i *Interpreter) Load(ident []string, alias string) error {
 }
 
 func (i *Interpreter) Call(mod, ident string, call CallFunc) (types.Primitive, error) {
+	if err := i.enter(); err != nil {
+		return nil, err
+	}
+	defer i.leave()
+
 	var (
 		m   types.Module
 		err error
