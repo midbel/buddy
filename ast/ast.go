@@ -5,7 +5,7 @@ import (
 )
 
 type Expression interface {
-	isPrimitive() bool
+	IsValue() bool
 }
 
 func CreatePrimitive(res interface{}) (Expression, error) {
@@ -33,7 +33,7 @@ func CreateAssert(expr Expression) Assert {
 	}
 }
 
-func (_ Assert) isPrimitive() bool {
+func (_ Assert) IsValue() bool {
 	return false
 }
 
@@ -49,7 +49,7 @@ func CreatePath(ident string, right Expression) Path {
 	}
 }
 
-func (_ Path) isPrimitive() bool {
+func (_ Path) IsValue() bool {
 	return false
 }
 
@@ -65,7 +65,7 @@ func CreateSymbol(ident string) Symbol {
 	}
 }
 
-func (_ Symbol) isPrimitive() bool {
+func (_ Symbol) IsValue() bool {
 	return false
 }
 
@@ -75,7 +75,7 @@ type Import struct {
 	Symbols []Symbol
 }
 
-func (_ Import) isPrimitive() bool {
+func (_ Import) IsValue() bool {
 	return false
 }
 
@@ -89,7 +89,7 @@ func CreateVariable(ident string) Variable {
 	}
 }
 
-func (_ Variable) isPrimitive() bool {
+func (_ Variable) IsValue() bool {
 	return false
 }
 
@@ -103,7 +103,7 @@ func CreateLiteral(str string) Literal {
 	}
 }
 
-func (_ Literal) isPrimitive() bool {
+func (_ Literal) IsValue() bool {
 	return true
 }
 
@@ -117,7 +117,7 @@ func CreateBoolean(b bool) Boolean {
 	}
 }
 
-func (_ Boolean) isPrimitive() bool {
+func (_ Boolean) IsValue() bool {
 	return true
 }
 
@@ -131,7 +131,7 @@ func CreateInteger(n int64) Integer {
 	}
 }
 
-func (_ Integer) isPrimitive() bool {
+func (_ Integer) IsValue() bool {
 	return true
 }
 
@@ -145,7 +145,7 @@ func CreateDouble(f float64) Double {
 	}
 }
 
-func (_ Double) isPrimitive() bool {
+func (_ Double) IsValue() bool {
 	return true
 }
 
@@ -153,7 +153,7 @@ type Array struct {
 	List []Expression
 }
 
-func (_ Array) isPrimitive() bool {
+func (_ Array) IsValue() bool {
 	return false
 }
 
@@ -161,7 +161,7 @@ type Dict struct {
 	List map[Expression]Expression
 }
 
-func (_ Dict) isPrimitive() bool {
+func (_ Dict) IsValue() bool {
 	return false
 }
 
@@ -178,7 +178,7 @@ func CreateSlice(start, end Expression) Slice {
 	}
 }
 
-func (_ Slice) isPrimitive() bool {
+func (_ Slice) IsValue() bool {
 	return false
 }
 
@@ -193,7 +193,7 @@ func CreateIndex(arr Expression) Index {
 	}
 }
 
-func (_ Index) isPrimitive() bool {
+func (_ Index) IsValue() bool {
 	return false
 }
 
@@ -208,7 +208,7 @@ func CreateParameter(ident string) Parameter {
 	}
 }
 
-func (_ Parameter) isPrimitive() bool {
+func (_ Parameter) IsValue() bool {
 	return false
 }
 
@@ -224,7 +224,7 @@ func CreateFunction(ident string) Function {
 	}
 }
 
-func (_ Function) isPrimitive() bool {
+func (_ Function) IsValue() bool {
 	return false
 }
 
@@ -240,7 +240,7 @@ func CreateAssign(ident, expr Expression) Assign {
 	}
 }
 
-func (_ Assign) isPrimitive() bool {
+func (_ Assign) IsValue() bool {
 	return false
 }
 
@@ -249,7 +249,7 @@ type Call struct {
 	Args  []Expression
 }
 
-func (_ Call) isPrimitive() bool {
+func (_ Call) IsValue() bool {
 	return false
 }
 
@@ -263,7 +263,7 @@ func CreateReturn(right Expression) Return {
 	}
 }
 
-func (_ Return) isPrimitive() bool {
+func (_ Return) IsValue() bool {
 	return false
 }
 
@@ -272,7 +272,7 @@ type Unary struct {
 	Right Expression
 }
 
-func (_ Unary) isPrimitive() bool {
+func (_ Unary) IsValue() bool {
 	return false
 }
 
@@ -282,7 +282,7 @@ type Binary struct {
 	Right Expression
 }
 
-func (_ Binary) isPrimitive() bool {
+func (_ Binary) IsValue() bool {
 	return false
 }
 
@@ -303,7 +303,7 @@ func CreateScriptFromList(list []Expression) Script {
 	}
 }
 
-func (_ Script) isPrimitive() bool {
+func (_ Script) IsValue() bool {
 	return false
 }
 
@@ -313,7 +313,7 @@ type CompItem struct {
 	Cdt   []Expression
 }
 
-func (_ CompItem) isPrimitive() bool {
+func (_ CompItem) IsValue() bool {
 	return false
 }
 
@@ -323,7 +323,7 @@ type DictComp struct {
 	List []CompItem
 }
 
-func (_ DictComp) isPrimitive() bool {
+func (_ DictComp) IsValue() bool {
 	return false
 }
 
@@ -332,7 +332,7 @@ type ListComp struct {
 	List []CompItem
 }
 
-func (c ListComp) isPrimitive() bool {
+func (c ListComp) IsValue() bool {
 	return false
 }
 
@@ -342,7 +342,7 @@ type For struct {
 	While
 }
 
-func (f For) isPrimitive() bool {
+func (f For) IsValue() bool {
 	return false
 }
 
@@ -352,7 +352,7 @@ type ForEach struct {
 	Body  Expression
 }
 
-func (_ ForEach) isPrimitive() bool {
+func (_ ForEach) IsValue() bool {
 	return false
 }
 
@@ -361,19 +361,19 @@ type While struct {
 	Body Expression
 }
 
-func (_ While) isPrimitive() bool {
+func (_ While) IsValue() bool {
 	return false
 }
 
 type Break struct{}
 
-func (_ Break) isPrimitive() bool {
+func (_ Break) IsValue() bool {
 	return false
 }
 
 type Continue struct{}
 
-func (_ Continue) isPrimitive() bool {
+func (_ Continue) IsValue() bool {
 	return false
 }
 
@@ -383,6 +383,6 @@ type Test struct {
 	Alt Expression
 }
 
-func (_ Test) isPrimitive() bool {
+func (_ Test) IsValue() bool {
 	return false
 }
