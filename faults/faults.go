@@ -21,15 +21,25 @@ func PrintError(w io.Writer, err error) {
 	}
 }
 
+const MaxErrorCount = 15
+
 type ErrorList []error
 
-func (e ErrorList) Error() string {
+func (es *ErrorList) Size() int {
+	return len((*es))
+}
+
+func (es *ErrorList) Append(err error) {
+	*es = append(*es, err)
+}
+
+func (es *ErrorList) Error() string {
 	var str strings.Builder
-	for i := range e {
+	for i := range *es {
 		if i > 0 {
 			str.WriteString("\n")
 		}
-		str.WriteString(e[i].Error())
+		str.WriteString((*es)[i].Error())
 	}
 	return str.String()
 }
