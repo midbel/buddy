@@ -9,6 +9,7 @@ import (
 	"github.com/midbel/buddy/ast"
 	"github.com/midbel/buddy/faults"
 	"github.com/midbel/buddy/parse"
+	"github.com/midbel/buddy/visitors"
 )
 
 func main() {
@@ -29,6 +30,14 @@ func main() {
 
 func Debug(w io.Writer, r io.Reader) error {
 	expr, err := parse.New(r).Parse()
+	if err != nil {
+		return err
+	}
+	all := []visitors.Visitor{
+		visitors.Value(),
+		visitors.Variable(),
+	}
+	expr, err = visitors.Visit(expr, all)
 	if err == nil {
 		ast.Debug(w, expr)
 	}

@@ -2,6 +2,8 @@ package ast
 
 import (
 	"fmt"
+	"math"
+	"strconv"
 )
 
 type Expression interface {
@@ -20,6 +22,25 @@ func CreatePrimitive(res interface{}) (Expression, error) {
 		return CreateLiteral(r), nil
 	default:
 		return nil, fmt.Errorf("unexpected primitive type: %T", res)
+	}
+}
+
+func IsTrue(e Expression) bool {
+	switch e := e.(type) {
+	case Literal:
+		return e.Str != ""
+	case Integer:
+		return e.Value != 0
+	case Double:
+		return e.Value != 0
+	case Boolean:
+		return e.Value
+	case Array:
+		return len(e.List) > 0
+	case Dict:
+		return len(e.List) > 0
+	default:
+		return false
 	}
 }
 
@@ -107,6 +128,67 @@ func (_ Literal) IsValue() bool {
 	return true
 }
 
+func (i Literal) Add(other Expression) Expression {
+	switch y := other.(type) {
+	case Integer:
+		i.Str += strconv.FormatInt(y.Value, 10)
+		return i
+	case Double:
+		i.Str += strconv.FormatFloat(y.Value, 'f', -1, 64)
+		return i
+	default:
+		return nil
+	}
+}
+
+func (i Literal) Eq(other Expression) Expression {
+	y, ok := other.(Literal)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(i.Str == y.Str)
+}
+
+func (i Literal) Ne(other Expression) Expression {
+	y, ok := other.(Literal)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(i.Str != y.Str)
+}
+
+func (i Literal) Lt(other Expression) Expression {
+	y, ok := other.(Literal)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(i.Str < y.Str)
+}
+
+func (i Literal) Le(other Expression) Expression {
+	y, ok := other.(Literal)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(i.Str <= y.Str)
+}
+
+func (i Literal) Gt(other Expression) Expression {
+	y, ok := other.(Literal)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(i.Str > y.Str)
+}
+
+func (i Literal) Ge(other Expression) Expression {
+	y, ok := other.(Literal)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(i.Str >= y.Str)
+}
+
 type Boolean struct {
 	Value bool
 }
@@ -119,6 +201,22 @@ func CreateBoolean(b bool) Boolean {
 
 func (_ Boolean) IsValue() bool {
 	return true
+}
+
+func (b Boolean) Eq(other Expression) Expression {
+	y, ok := other.(Boolean)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(b.Value == y.Value)
+}
+
+func (b Boolean) Ne(other Expression) Expression {
+	y, ok := other.(Boolean)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(b.Value != y.Value)
 }
 
 type Integer struct {
@@ -135,6 +233,184 @@ func (_ Integer) IsValue() bool {
 	return true
 }
 
+func (i Integer) Add(other Expression) Expression {
+	switch y := other.(type) {
+	case Integer:
+		i.Value += y.Value
+		return i
+	case Double:
+		y.Value += float64(i.Value)
+		return y
+	case Literal:
+		y.Str = strconv.FormatInt(i.Value, 10) + y.Str
+		return y
+	default:
+		return nil
+	}
+}
+
+func (i Integer) Sub(other Expression) Expression {
+	switch y := other.(type) {
+	case Integer:
+		i.Value -= y.Value
+		return i
+	case Double:
+		y.Value = float64(i.Value) - y.Value
+		return y
+	default:
+		return nil
+	}
+}
+
+func (i Integer) Mul(other Expression) Expression {
+	switch y := other.(type) {
+	case Integer:
+		i.Value *= y.Value
+		return i
+	case Double:
+		y.Value = float64(i.Value) * y.Value
+		return y
+	default:
+		return nil
+	}
+}
+
+func (i Integer) Div(other Expression) Expression {
+	switch y := other.(type) {
+	case Integer:
+		if y.Value == 0 {
+			return nil
+		}
+		i.Value /= y.Value
+		return i
+	case Double:
+		if y.Value == 0 {
+			return nil
+		}
+		y.Value = float64(i.Value) / y.Value
+		return y
+	default:
+		return nil
+	}
+}
+
+func (i Integer) Pow(other Expression) Expression {
+	switch y := other.(type) {
+	case Integer:
+		x := math.Pow(float64(i.Value), float64(y.Value))
+		i.Value = int64(x)
+		return i
+	case Double:
+		y.Value = math.Pow(float64(i.Value), y.Value)
+		return y
+	default:
+		return nil
+	}
+}
+
+func (i Integer) Mod(other Expression) Expression {
+	switch y := other.(type) {
+	case Integer:
+		if y.Value == 0 {
+			return nil
+		}
+		i.Value %= y.Value
+		return i
+	case Double:
+		if y.Value == 0 {
+			return nil
+		}
+		y.Value = math.Mod(float64(i.Value), y.Value)
+		return y
+	default:
+		return nil
+	}
+}
+
+func (i Integer) Lshift(other Expression) Expression {
+	y, ok := other.(Integer)
+	if !ok {
+		return nil
+	}
+	i.Value = i.Value << y.Value
+	return i
+}
+
+func (i Integer) Rshift(other Expression) Expression {
+	y, ok := other.(Integer)
+	if !ok {
+		return nil
+	}
+	i.Value = i.Value >> y.Value
+	return i
+}
+
+func (i Integer) And(other Expression) Expression {
+	y, ok := other.(Integer)
+	if !ok {
+		return nil
+	}
+	i.Value = i.Value & y.Value
+	return i
+}
+
+func (i Integer) Or(other Expression) Expression {
+	y, ok := other.(Integer)
+	if !ok {
+		return nil
+	}
+	i.Value = i.Value | y.Value
+	return i
+}
+
+func (i Integer) Eq(other Expression) Expression {
+	y, ok := other.(Integer)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(i.Value == y.Value)
+}
+
+func (i Integer) Ne(other Expression) Expression {
+	y, ok := other.(Integer)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(i.Value != y.Value)
+}
+
+func (i Integer) Lt(other Expression) Expression {
+	y, ok := other.(Integer)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(i.Value < y.Value)
+}
+
+func (i Integer) Le(other Expression) Expression {
+	y, ok := other.(Integer)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(i.Value <= y.Value)
+}
+
+func (i Integer) Gt(other Expression) Expression {
+	y, ok := other.(Integer)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(i.Value > y.Value)
+}
+
+func (i Integer) Ge(other Expression) Expression {
+	y, ok := other.(Integer)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(i.Value >= y.Value)
+}
+
 type Double struct {
 	Value float64
 }
@@ -147,6 +423,149 @@ func CreateDouble(f float64) Double {
 
 func (_ Double) IsValue() bool {
 	return true
+}
+
+func (d Double) Add(other Expression) Expression {
+	switch y := other.(type) {
+	case Integer:
+		d.Value += float64(y.Value)
+		return d
+	case Double:
+		d.Value += y.Value
+		return d
+	case Literal:
+		y.Str = strconv.FormatFloat(d.Value, 'f', -1, 64) + y.Str
+		return y
+	default:
+		return nil
+	}
+}
+
+func (d Double) Sub(other Expression) Expression {
+	switch y := other.(type) {
+	case Integer:
+		d.Value -= float64(y.Value)
+		return d
+	case Double:
+		d.Value -= y.Value
+		return d
+	default:
+		return nil
+	}
+}
+
+func (d Double) Mul(other Expression) Expression {
+	switch y := other.(type) {
+	case Integer:
+		d.Value *= float64(y.Value)
+		return d
+	case Double:
+		d.Value *= d.Value
+		return d
+	default:
+		return nil
+	}
+	return d
+}
+
+func (d Double) Div(other Expression) Expression {
+	switch y := other.(type) {
+	case Integer:
+		if y.Value == 0 {
+			return nil
+		}
+		d.Value /= float64(y.Value)
+	case Double:
+		if y.Value == 0 {
+			return nil
+		}
+		d.Value /= y.Value
+	default:
+		return nil
+	}
+	return d
+}
+
+func (d Double) Mod(other Expression) Expression {
+	switch y := other.(type) {
+	case Integer:
+		if y.Value == 0 {
+			return nil
+		}
+		d.Value = math.Mod(d.Value, float64(y.Value))
+		return d
+	case Double:
+		if y.Value == 0 {
+			return nil
+		}
+		d.Value = math.Mod(d.Value, y.Value)
+		return d
+	default:
+		return nil
+	}
+	return d
+}
+
+func (d Double) Pow(other Expression) Expression {
+	switch y := other.(type) {
+	case Integer:
+		d.Value = math.Pow(d.Value, float64(y.Value))
+		return d
+	case Double:
+		d.Value = math.Pow(d.Value, y.Value)
+		return d
+	default:
+		return nil
+	}
+	return d
+}
+
+func (d Double) Eq(other Expression) Expression {
+	y, ok := other.(Double)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(d.Value == y.Value)
+}
+
+func (d Double) Ne(other Expression) Expression {
+	y, ok := other.(Double)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(d.Value != y.Value)
+}
+
+func (d Double) Lt(other Expression) Expression {
+	y, ok := other.(Double)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(d.Value < y.Value)
+}
+
+func (d Double) Le(other Expression) Expression {
+	y, ok := other.(Double)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(d.Value <= y.Value)
+}
+
+func (d Double) Gt(other Expression) Expression {
+	y, ok := other.(Double)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(d.Value > y.Value)
+}
+
+func (d Double) Ge(other Expression) Expression {
+	y, ok := other.(Double)
+	if !ok {
+		return nil
+	}
+	return CreateBoolean(d.Value >= y.Value)
 }
 
 type Array struct {

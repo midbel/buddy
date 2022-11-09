@@ -41,6 +41,8 @@ func CreatePrimitive(value any) (Primitive, error) {
 		return CreateInt(v), nil
 	case float64:
 		return CreateFloat(v), nil
+	case bool:
+		return CreateBool(v), nil
 	default:
 		return nil, fmt.Errorf("%s can not be transformed to Primitive")
 	}
