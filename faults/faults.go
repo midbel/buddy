@@ -39,14 +39,7 @@ func (es *ErrorList) Append(err error) {
 }
 
 func (es *ErrorList) Error() string {
-	var str strings.Builder
-	for i := range *es {
-		if i > 0 {
-			str.WriteString("\n")
-		}
-		str.WriteString((*es)[i].Error())
-	}
-	return str.String()
+	return "too many errors..."
 }
 
 func printParseError(w io.Writer, err parse.ParseError) {

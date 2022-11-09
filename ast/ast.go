@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+
+	"github.com/buddy/token"
 )
 
 type Expression interface {
@@ -45,6 +47,7 @@ func IsTrue(e Expression) bool {
 }
 
 type Assert struct {
+	token.Token
 	Expr Expression
 }
 
@@ -59,6 +62,7 @@ func (_ Assert) IsValue() bool {
 }
 
 type Path struct {
+	token.Token
 	Ident string
 	Right Expression
 }
@@ -91,6 +95,7 @@ func (_ Symbol) IsValue() bool {
 }
 
 type Import struct {
+	token.Token
 	Ident   []string
 	Alias   string
 	Symbols []Symbol
@@ -101,6 +106,7 @@ func (_ Import) IsValue() bool {
 }
 
 type Variable struct {
+	token.Token
 	Ident string
 }
 
@@ -115,6 +121,7 @@ func (_ Variable) IsValue() bool {
 }
 
 type Literal struct {
+	token.Token
 	Str string
 }
 
@@ -190,6 +197,7 @@ func (i Literal) Ge(other Expression) Expression {
 }
 
 type Boolean struct {
+	token.Token
 	Value bool
 }
 
@@ -220,6 +228,7 @@ func (b Boolean) Ne(other Expression) Expression {
 }
 
 type Integer struct {
+	token.Token
 	Value int64
 }
 
@@ -412,6 +421,7 @@ func (i Integer) Ge(other Expression) Expression {
 }
 
 type Double struct {
+	token.Token
 	Value float64
 }
 
@@ -569,6 +579,7 @@ func (d Double) Ge(other Expression) Expression {
 }
 
 type Array struct {
+	token.Token
 	List []Expression
 }
 
@@ -577,6 +588,7 @@ func (_ Array) IsValue() bool {
 }
 
 type Dict struct {
+	token.Token
 	List map[Expression]Expression
 }
 
@@ -585,6 +597,7 @@ func (_ Dict) IsValue() bool {
 }
 
 type Slice struct {
+	token.Token
 	Start Expression
 	End   Expression
 	Step  Expression
@@ -602,6 +615,7 @@ func (_ Slice) IsValue() bool {
 }
 
 type Index struct {
+	token.Token
 	Arr  Expression
 	List []Expression
 }
@@ -617,6 +631,7 @@ func (_ Index) IsValue() bool {
 }
 
 type Parameter struct {
+	token.Token
 	Ident string
 	Expr  Expression
 }
@@ -632,6 +647,7 @@ func (_ Parameter) IsValue() bool {
 }
 
 type Function struct {
+	token.Token
 	Ident  string
 	Params []Expression
 	Body   Expression
@@ -648,6 +664,7 @@ func (_ Function) IsValue() bool {
 }
 
 type Assign struct {
+	token.Token
 	Ident Expression
 	Right Expression
 }
@@ -664,6 +681,7 @@ func (_ Assign) IsValue() bool {
 }
 
 type Call struct {
+	token.Token
 	Ident string
 	Args  []Expression
 }
@@ -673,6 +691,7 @@ func (_ Call) IsValue() bool {
 }
 
 type Return struct {
+	token.Token
 	Right Expression
 }
 
@@ -687,6 +706,7 @@ func (_ Return) IsValue() bool {
 }
 
 type Unary struct {
+	token.Token
 	Op    rune
 	Right Expression
 }
@@ -696,6 +716,7 @@ func (_ Unary) IsValue() bool {
 }
 
 type Binary struct {
+	token.Token
 	Op    rune
 	Left  Expression
 	Right Expression
@@ -706,6 +727,7 @@ func (_ Binary) IsValue() bool {
 }
 
 type Script struct {
+	token.Token
 	List    []Expression
 	Symbols map[string]Expression
 }
@@ -727,6 +749,7 @@ func (_ Script) IsValue() bool {
 }
 
 type CompItem struct {
+	token.Token
 	Ident string
 	Iter  Expression
 	Cdt   []Expression
@@ -737,6 +760,7 @@ func (_ CompItem) IsValue() bool {
 }
 
 type DictComp struct {
+	token.Token
 	Key  Expression
 	Val  Expression
 	List []CompItem
@@ -747,6 +771,7 @@ func (_ DictComp) IsValue() bool {
 }
 
 type ListComp struct {
+	token.Token
 	Body Expression
 	List []CompItem
 }
@@ -756,6 +781,7 @@ func (c ListComp) IsValue() bool {
 }
 
 type For struct {
+	token.Token
 	Init Expression
 	Incr Expression
 	While
@@ -766,6 +792,7 @@ func (f For) IsValue() bool {
 }
 
 type ForEach struct {
+	token.Token
 	Ident string
 	Iter  Expression
 	Body  Expression
@@ -776,6 +803,7 @@ func (_ ForEach) IsValue() bool {
 }
 
 type While struct {
+	token.Token
 	Cdt  Expression
 	Body Expression
 }
@@ -784,19 +812,24 @@ func (_ While) IsValue() bool {
 	return false
 }
 
-type Break struct{}
+type Break struct {
+	token.Token
+}
 
 func (_ Break) IsValue() bool {
 	return false
 }
 
-type Continue struct{}
+type Continue struct {
+	token.Token
+}
 
 func (_ Continue) IsValue() bool {
 	return false
 }
 
 type Test struct {
+	token.Token
 	Cdt Expression
 	Csq Expression
 	Alt Expression
