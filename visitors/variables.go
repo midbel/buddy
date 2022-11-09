@@ -23,6 +23,7 @@ func Variable() Visitor {
 
 func (v *variableVisitor) Visit(expr ast.Expression) (ast.Expression, error) {
 	err := v.visit(expr)
+	v.unused()
 	if err == nil && v.list.Size() > 0 {
 		err = &v.list
 	}
@@ -186,7 +187,12 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 }
 
 func (v variableVisitor) unused() {
-
+	for id := range v.env {
+		c := v.env[id]
+		if c == 1 {
+			v.list.Append(unusedVar(id))
+		}
+	}
 }
 
 func (v variableVisitor) exists(ident string) error {
