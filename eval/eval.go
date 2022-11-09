@@ -183,16 +183,6 @@ func evalPath(p ast.Path, env *Interpreter) (types.Primitive, error) {
 		return env.Call(p.Ident, right.Ident, func(call types.Callable) (types.Primitive, error) {
 			return call.Call(env, args)
 		})
-	case ast.Variable:
-		res, err := env.Resolve(p.Ident)
-		if err != nil {
-			return nil, err
-		}
-		c, ok := res.(types.Container)
-		if !ok {
-			return nil, types.ContainerError(res)
-		}
-		return c.Get(types.CreateString(right.Ident))
 	default:
 		return nil, fmt.Errorf("path: %w", errEval)
 	}

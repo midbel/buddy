@@ -8,14 +8,14 @@ import (
 )
 
 type variableVisitor struct {
-	env   map[string]int
+	env   *Counter[string]
 	list  faults.ErrorList
 	limit int
 }
 
 func Variable() Visitor {
 	return &variableVisitor{
-		env:   make(map[string]int),
+		env:   EmptyCounter[string](),
 		list:  make(faults.ErrorList, 0, faults.MaxErrorCount),
 		limit: faults.MaxErrorCount,
 	}
@@ -23,7 +23,6 @@ func Variable() Visitor {
 
 func (v *variableVisitor) Visit(expr ast.Expression) (ast.Expression, error) {
 	err := v.visit(expr)
-	v.unused()
 	if err == nil && v.list.Size() > 0 {
 		err = &v.list
 	}
@@ -59,6 +58,26 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 			}
 		}
 	case ast.Index:
+		if i, ok := e.Arr.(ast.Variable); ok {
+			if err = v.exists(i.Ident); err != nil {
+				v.list.Append(err)
+			}
+		}
+		for i := range e.List {
+			if err = v.visit(e.List[i]); err != nil {
+				v.list.Append(err)
+			}
+		}
+	case ast.Slice:
+		if err = v.visit(e.Start); err != nil {
+			v.list.Append(err)
+		}
+		if err = v.visit(e.End); err != nil {
+			v.list.Append(err)
+		}
+		if err = v.visit(e.Step); err != nil {
+			v.list.Append(err)
+		}
 	case ast.Path:
 	case ast.Call:
 		for i := range e.Args {
@@ -80,7 +99,7 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 			v.list.Append(err)
 		}
 		if i, ok := e.Ident.(ast.Variable); ok {
-			v.set(i.Ident)
+			v.env.Add(i.Ident)
 		}
 	case ast.Unary:
 		err = v.visit(e.Right)
@@ -95,70 +114,85 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 			v.list.Append(err)
 		}
 	case ast.ListComp:
-		// sub := Variable()
-		// for i := range e.List {
-		// 	if _, err = sub.Visit(e.List[i]); err != nil {
-		// 		v.list.Append(err)
-		// 	}
-		// }
-		// if _, err = sub.Visit(e.Body); err != nil {
-		// 	v.list.Append(err)
-		// }
+		v.enter()
+		defer v.leave()
+		for i := range e.List {
+			if err = v.visit(e.List[i].Iter); err != nil {
+				v.list.Append(err)
+			}
+			v.env.Add(e.List[i].Ident)
+			for j := range e.List[i].Cdt {
+				if err = v.visit(e.List[i].Cdt[j]); err != nil {
+					v.list.Append(err)
+				}
+			}
+		}
+		if err = v.visit(e.Body); err != nil {
+			v.list.Append(err)
+		}
 	case ast.DictComp:
-		// sub := Variable()
-		// for i := range e.List {
-		// 	if _, err = sub.Visit(e.List[i]); err != nil {
-		// 		v.list.Append(err)
-		// 	}
-		// }
-		// if _, err = sub.Visit(e.Key); err != nil {
-		// 	v.list.Append(err)
-		// }
-		// if _, err = sub.Visit(e.Val); err != nil {
-		// 	v.list.Append(err)
-		// }
-	case ast.CompItem:
+		v.enter()
+		defer v.leave()
+		for i := range e.List {
+			if err = v.visit(e.List[i].Iter); err != nil {
+				v.list.Append(err)
+			}
+			v.env.Add(e.List[i].Ident)
+			for j := range e.List[i].Cdt {
+				if err = v.visit(e.List[i].Cdt[j]); err != nil {
+					v.list.Append(err)
+				}
+			}
+		}
+		if err = v.visit(e.Key); err != nil {
+			v.list.Append(err)
+		}
+		if err = v.visit(e.Val); err != nil {
+			v.list.Append(err)
+		}
 	case ast.Test:
+		v.enter()
+		defer v.leave()
 		if err = v.visit(e.Cdt); err != nil {
 			v.list.Append(err)
 		}
-		sub1 := Variable()
-		if _, err = sub1.Visit(e.Csq); err != nil {
+		if err = v.visit(e.Csq); err != nil {
 			v.list.Append(err)
 		}
-		sub2 := Variable()
-		if _, err = sub2.Visit(e.Alt); err != nil {
+		if err = v.visit(e.Alt); err != nil {
 			v.list.Append(err)
 		}
 	case ast.While:
 		if err = v.visit(e.Cdt); err != nil {
 			v.list.Append(err)
 		}
-		sub := Variable()
-		if _, err = sub.Visit(e.Body); err != nil {
+		v.enter()
+		defer v.leave()
+		if err = v.visit(e.Body); err != nil {
 			v.list.Append(err)
 		}
 	case ast.For:
-		sub := Variable()
-		if _, err = sub.Visit(e.Init); err != nil {
+		v.enter()
+		defer v.leave()
+		if err = v.visit(e.Init); err != nil {
 			v.list.Append(err)
 		}
-		if _, err = sub.Visit(e.Cdt); err != nil {
+		if err = v.visit(e.Cdt); err != nil {
 			v.list.Append(err)
 		}
-		if _, err = sub.Visit(e.Incr); err != nil {
+		if err = v.visit(e.Incr); err != nil {
 			v.list.Append(err)
 		}
-		sub2 := Variable()
-		if _, err = sub2.Visit(e.Body); err != nil {
+		if err = v.visit(e.Body); err != nil {
 			v.list.Append(err)
 		}
 	case ast.ForEach:
+		v.enter()
+		defer v.leave()
 		if err = v.visit(e.Iter); err != nil {
 			v.list.Append(err)
 		}
-		sub := Variable()
-		if _, err = sub.Visit(e.Body); err != nil {
+		if err = v.visit(e.Body); err != nil {
 			v.list.Append(err)
 		}
 	case ast.Import:
@@ -171,6 +205,18 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 			}
 		}
 	case ast.Function:
+		v.enter()
+		defer v.leave()
+		for i := range e.Params {
+			p, ok := e.Params[i].(ast.Parameter)
+			if !ok {
+				continue
+			}
+			v.env.Add(p.Ident)
+		}
+		if err = v.visit(e.Body); err != nil {
+			v.list.Append(err)
+		}
 	case ast.Return:
 		if err = v.visit(e.Right); err != nil {
 			v.list.Append(err)
@@ -186,25 +232,20 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 	return nil
 }
 
-func (v variableVisitor) unused() {
-	for id := range v.env {
-		c := v.env[id]
-		if c == 1 {
-			v.list.Append(unusedVar(id))
-		}
-	}
+func (v *variableVisitor) enter() {
+	v.env = v.env.Wrap()
+}
+
+func (v *variableVisitor) leave() {
+	v.env = v.env.Unwrap()
 }
 
 func (v variableVisitor) exists(ident string) error {
-	_, ok := v.env[ident]
+	ok := v.env.Exists(ident)
 	if !ok {
 		return undefinedVar(ident)
 	}
 	return nil
-}
-
-func (v variableVisitor) set(ident string) {
-	v.env[ident]++
 }
 
 func (v variableVisitor) noLimit() bool {

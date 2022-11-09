@@ -23,6 +23,7 @@ func (v valueVisitor) Visit(expr ast.Expression) (ast.Expression, error) {
 }
 
 func (v valueVisitor) visit(expr ast.Expression, ctx types.Context) (ast.Expression, error) {
+	// TODO: create sub Environ for Test, For, While, ForEach, Function
 	var err error
 	switch e := expr.(type) {
 	case ast.Literal:
@@ -60,6 +61,17 @@ func (v valueVisitor) visit(expr ast.Expression, ctx types.Context) (ast.Express
 			if e.List[i], err = v.visit(e.List[i], ctx); err != nil {
 				break
 			}
+		}
+		return e, nil
+	case ast.Slice:
+		if e.Start, err = v.visit(e.Start, ctx); err != nil {
+			return nil, err
+		}
+		if e.End, err = v.visit(e.End, ctx); err != nil {
+			return nil, err
+		}
+		if e.Step, err = v.visit(e.Step, ctx); err != nil {
+			return nil, err
 		}
 		return e, nil
 	case ast.Path:

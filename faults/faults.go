@@ -30,7 +30,12 @@ func (es *ErrorList) Size() int {
 }
 
 func (es *ErrorList) Append(err error) {
-	*es = append(*es, err)
+	switch e := err.(type) {
+	case *ErrorList:
+		*es = append(*es, (*e)...)
+	default:
+		*es = append(*es, err)
+	}
 }
 
 func (es *ErrorList) Error() string {
