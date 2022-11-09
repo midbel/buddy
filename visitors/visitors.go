@@ -61,5 +61,8 @@ func (c *Counter[T]) Wrap() *Counter[T] {
 }
 
 func (c *Counter[T]) Unwrap() *Counter[T] {
+	if c.parent == nil {
+		return c
+	}
 	return c.parent
 }
