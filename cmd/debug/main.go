@@ -36,6 +36,7 @@ func Debug(w io.Writer, r io.Reader) error {
 	all := []visitors.Visitor{
 		visitors.Value(),
 		visitors.Variable(),
+		visitors.Import(),
 	}
 	expr, err = visitors.Visit(expr, all)
 	if err == nil {

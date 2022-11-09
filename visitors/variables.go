@@ -44,6 +44,8 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 		err = v.exists(e.Ident)
 		if err != nil {
 			v.list.Append(err)
+		} else {
+			v.env.Incr(e.Ident)
 		}
 	case ast.Array:
 		for i := range e.List {
@@ -99,7 +101,7 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 			v.list.Append(err)
 		}
 		if i, ok := e.Ident.(ast.Variable); ok {
-			v.env.Add(i.Ident)
+			v.env.Incr(i.Ident)
 		}
 	case ast.Unary:
 		err = v.visit(e.Right)
@@ -120,7 +122,7 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 			if err = v.visit(e.List[i].Iter); err != nil {
 				v.list.Append(err)
 			}
-			v.env.Add(e.List[i].Ident)
+			v.env.Incr(e.List[i].Ident)
 			for j := range e.List[i].Cdt {
 				if err = v.visit(e.List[i].Cdt[j]); err != nil {
 					v.list.Append(err)
@@ -137,7 +139,7 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 			if err = v.visit(e.List[i].Iter); err != nil {
 				v.list.Append(err)
 			}
-			v.env.Add(e.List[i].Ident)
+			v.env.Incr(e.List[i].Ident)
 			for j := range e.List[i].Cdt {
 				if err = v.visit(e.List[i].Cdt[j]); err != nil {
 					v.list.Append(err)
@@ -212,7 +214,7 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 			if !ok {
 				continue
 			}
-			v.env.Add(p.Ident)
+			v.env.Incr(p.Ident)
 		}
 		if err = v.visit(e.Body); err != nil {
 			v.list.Append(err)

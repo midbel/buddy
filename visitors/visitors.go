@@ -44,8 +44,12 @@ func NewCounter[T constraints.Ordered](parent *Counter[T]) *Counter[T] {
 	}
 }
 
-func (c *Counter[T]) Add(ident T) {
+func (c *Counter[T]) Incr(ident T) {
 	c.data[ident]++
+}
+
+func (c *Counter[T]) Decr(ident T) {
+	c.data[ident]--
 }
 
 func (c *Counter[T]) Exists(ident T) bool {
