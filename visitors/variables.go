@@ -5,6 +5,7 @@ import (
 
 	"github.com/midbel/buddy/ast"
 	"github.com/midbel/buddy/faults"
+	"github.com/midbel/buddy/token"
 )
 
 type variableVisitor struct {
@@ -41,7 +42,7 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 	case ast.Boolean:
 		// PASS: to be removed later
 	case ast.Variable:
-		err = v.exists(e.Ident)
+		err = v.exists(e)
 		if err != nil {
 			v.list.Append(err)
 		} else {
@@ -61,7 +62,7 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 		}
 	case ast.Index:
 		if i, ok := e.Arr.(ast.Variable); ok {
-			if err = v.exists(i.Ident); err != nil {
+			if err = v.exists(i); err != nil {
 				v.list.Append(err)
 			}
 		}
@@ -242,10 +243,10 @@ func (v *variableVisitor) leave() {
 	v.env = v.env.Unwrap()
 }
 
-func (v variableVisitor) exists(ident string) error {
-	ok := v.env.Exists(ident)
+func (v variableVisitor) exists(i ast.Variable) error {
+	ok := v.env.Exists(i.Ident)
 	if !ok {
-		return undefinedVar(ident)
+		return undefinedVar(i.Ident, i.Position)
 	}
 	return nil
 }
@@ -254,8 +255,8 @@ func (v variableVisitor) noLimit() bool {
 	return v.limit <= 0
 }
 
-func undefinedVar(ident string) error {
-	return fmt.Errorf("%s: variable used before being defined!", ident)
+func undefinedVar(ident string, pos token.Position) error {
+	return fmt.Errorf("[%s] %s: variable used before being defined!", pos, ident)
 }
 
 func unusedVar(ident string) error {

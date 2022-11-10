@@ -13,9 +13,15 @@ func PrintError(w io.Writer, err error) {
 	if err == nil {
 		return
 	}
-	var perr parse.ParseError
+	var (
+		perr parse.ParseError
+		errl *ErrorList
+	)
+
 	if errors.As(err, &perr) {
 		printParseError(w, perr)
+	} else if errors.As(err, &errl) {
+		printErrorList(w, errl)
 	} else {
 		fmt.Fprintln(w, err)
 	}
@@ -42,9 +48,9 @@ func (es *ErrorList) Error() string {
 	return "too many errors..."
 }
 
-func printErrorList(w io.Writer, err ErrorList) {
-	for i := range err {
-		fmt.Fprintln(w, err[i])
+func printErrorList(w io.Writer, err *ErrorList) {
+	for i := range *err {
+		fmt.Fprintln(w, (*err)[i])
 	}
 	fmt.Fprintln(w, err)
 }
