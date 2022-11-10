@@ -102,7 +102,7 @@ func New(r io.Reader) *Parser {
 }
 
 func (p *Parser) Parse() (ast.Expression, error) {
-	s := ast.CreateScript()
+	s := ast.CreateScript(p.curr)
 	for !p.done() {
 		if p.is(token.Comment) {
 			p.next()
@@ -181,21 +181,23 @@ func (p *Parser) parseKeyword() (ast.Expression, error) {
 }
 
 func (p *Parser) parseAssert() (ast.Expression, error) {
+	tok := p.curr
 	p.next()
 	expr, err := p.parse(powLowest)
 	if err != nil {
 		return nil, err
 	}
-	return ast.CreateAssert(expr), err
+	return ast.CreateAssert(tok, expr), err
 }
 
 func (p *Parser) parseFor() (ast.Expression, error) {
-	p.next()
-
 	var (
+		tok  = p.curr
 		loop ast.For
 		err  error
 	)
+	loop.Token = tok
+	p.next()
 	if !p.is(token.EOL) {
 		loop.Init, err = p.parse(powLowest)
 		if err != nil {
@@ -241,6 +243,7 @@ func (p *Parser) parseForeach(ident string) (ast.Expression, error) {
 		expr ast.ForEach
 		err  error
 	)
+	expr.Token = p.curr
 	expr.Ident = ident
 	if err := p.expectKW(token.KwIn, "expected 'in' keyword"); err != nil {
 		return nil, err
@@ -257,8 +260,9 @@ func (p *Parser) parseForeach(ident string) (ast.Expression, error) {
 }
 
 func (p *Parser) parseFrom() (ast.Expression, error) {
-	p.next()
 	var imp ast.Import
+	imp.Token = p.curr
+	p.next()
 	for p.is(token.Ident) {
 		imp.Ident = append(imp.Ident, p.curr.Literal)
 		p.next()
@@ -281,7 +285,7 @@ func (p *Parser) parseFrom() (ast.Expression, error) {
 		if err := p.expect(token.Ident, "expected identifier"); err != nil {
 			return nil, err
 		}
-		s := ast.CreateSymbol(p.curr.Literal)
+		s := ast.CreateSymbol(p.curr, p.curr.Literal)
 		p.next()
 		if err := p.expectKW(token.KwAs, ""); err == nil {
 			p.next()
@@ -307,8 +311,9 @@ func (p *Parser) parseFrom() (ast.Expression, error) {
 }
 
 func (p *Parser) parseImport() (ast.Expression, error) {
-	p.next()
 	var imp ast.Import
+	imp.Token = p.curr
+	p.next()
 	for p.is(token.Ident) {
 		imp.Ident = append(imp.Ident, p.curr.Literal)
 		imp.Alias = p.curr.Literal
@@ -346,7 +351,7 @@ func (p *Parser) parseParameters() ([]ast.Expression, error) {
 		if err := p.expect(token.Ident, "expected identifier"); err != nil {
 			return nil, err
 		}
-		a := ast.CreateParameter(p.curr.Literal)
+		a := ast.CreateParameter(p.curr, p.curr.Literal)
 		list = append(list, a)
 		p.next()
 		switch p.curr.Type {
@@ -364,7 +369,7 @@ func (p *Parser) parseParameters() ([]ast.Expression, error) {
 		if err := p.expect(token.Ident, "expected identifier"); err != nil {
 			return nil, err
 		}
-		a := ast.CreateParameter(p.curr.Literal)
+		a := ast.CreateParameter(p.curr, p.curr.Literal)
 		p.next()
 		if err := p.expect(token.Assign, "expected '='"); err != nil {
 			return nil, err
@@ -398,15 +403,16 @@ func (p *Parser) parseParameters() ([]ast.Expression, error) {
 }
 
 func (p *Parser) parseFunction() (ast.Expression, error) {
+	var (
+		tok = p.curr
+		fn  = ast.CreateFunction(tok, p.peek.Literal)
+		err error
+	)
 	p.next()
-	fn := ast.CreateFunction(p.curr.Literal)
 	p.next()
-	args, err := p.parseParameters()
-	if err != nil {
+	if fn.Params, err = p.parseParameters(); err != nil {
 		return nil, err
 	}
-	fn.Params = args
-
 	if fn.Body, err = p.parseBlock(); err != nil {
 		return nil, err
 	}
@@ -414,11 +420,14 @@ func (p *Parser) parseFunction() (ast.Expression, error) {
 }
 
 func (p *Parser) parseBlock() (ast.Expression, error) {
+	var (
+		tok  = p.curr
+		list []ast.Expression
+	)
 	if err := p.expect(token.Lcurly, "expected '{"); err != nil {
 		return nil, err
 	}
 	p.next()
-	var list []ast.Expression
 	for !p.is(token.Rcurly) && !p.done() {
 		e, err := p.parse(powLowest)
 		if err != nil {
@@ -434,16 +443,18 @@ func (p *Parser) parseBlock() (ast.Expression, error) {
 		return nil, err
 	}
 	p.next()
-	return ast.CreateScriptFromList(list), nil
+	return ast.CreateScriptFromList(tok, list), nil
 }
 
 func (p *Parser) parseIf() (ast.Expression, error) {
-	p.next()
-
 	var (
 		expr ast.Test
 		err  error
+		tok  = p.curr
 	)
+	p.next()
+
+	expr.Token = tok
 	expr.Cdt, err = p.parse(powLowest)
 	if err != nil {
 		return nil, err
@@ -469,12 +480,14 @@ func (p *Parser) parseIf() (ast.Expression, error) {
 }
 
 func (p *Parser) parseWhile() (ast.Expression, error) {
-	p.next()
-
 	var (
 		expr ast.While
 		err  error
+		tok  = p.curr
 	)
+	p.next()
+
+	expr.Token = tok
 	expr.Cdt, err = p.parse(powLowest)
 	if err != nil {
 		return nil, err
@@ -490,31 +503,33 @@ func (p *Parser) parseWhile() (ast.Expression, error) {
 }
 
 func (p *Parser) parseReturn() (ast.Expression, error) {
+	tok := p.curr
 	p.next()
 	if p.is(token.EOL) || p.is(token.EOF) {
-		return ast.CreateReturn(nil), nil
+		return ast.CreateReturn(tok, nil), nil
 	}
 	right, err := p.parse(powLowest)
 	if err != nil {
 		return nil, err
 	}
-	return ast.CreateReturn(right), nil
+	return ast.CreateReturn(tok, right), nil
 }
 
 func (p *Parser) parseBreak() (ast.Expression, error) {
-	p.next()
-	return ast.Break{}, nil
+	defer p.next()
+	return ast.Break{Token: p.curr}, nil
 }
 
 func (p *Parser) parseContinue() (ast.Expression, error) {
-	p.next()
-	return ast.Continue{}, nil
+	defer p.next()
+	return ast.Continue{Token: p.curr}, nil
 }
 
 func (p *Parser) parseTernary(left ast.Expression) (ast.Expression, error) {
 	var err error
 	expr := ast.Test{
-		Cdt: left,
+		Token: p.curr,
+		Cdt:   left,
 	}
 	p.next()
 	if expr.Csq, err = p.parse(powLowest); err != nil {
@@ -532,6 +547,7 @@ func (p *Parser) parseTernary(left ast.Expression) (ast.Expression, error) {
 }
 
 func (p *Parser) parsePath(left ast.Expression) (ast.Expression, error) {
+	tok := p.curr
 	v, ok := left.(ast.Variable)
 	if !ok {
 		return nil, p.parseError("unexpected path operator")
@@ -541,7 +557,7 @@ func (p *Parser) parsePath(left ast.Expression) (ast.Expression, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ast.CreatePath(v.Ident, right), nil
+	return ast.CreatePath(tok, v.Ident, right), nil
 }
 
 func (p *Parser) parseAssign(left ast.Expression) (ast.Expression, error) {
@@ -550,13 +566,16 @@ func (p *Parser) parseAssign(left ast.Expression) (ast.Expression, error) {
 	default:
 		return nil, p.parseError("unexpected assignment operator")
 	}
-	op := p.curr.Type
+	var (
+		tok = p.curr
+		op  = p.curr.Type
+	)
 	p.next()
 	right, err := p.parse(powLowest)
 	if err != nil {
 		return nil, err
 	}
-	expr := ast.CreateAssign(left, right)
+	expr := ast.CreateAssign(tok, left, right)
 	if op != token.Assign {
 		switch op {
 		case token.AddAssign:
@@ -593,8 +612,9 @@ func (p *Parser) parseAssign(left ast.Expression) (ast.Expression, error) {
 
 func (p *Parser) parseInfix(left ast.Expression) (ast.Expression, error) {
 	expr := ast.Binary{
-		Op:   p.curr.Type,
-		Left: left,
+		Token: p.curr,
+		Op:    p.curr.Type,
+		Left:  left,
 	}
 	pow := powers.Get(p.curr.Type)
 	p.next()
@@ -607,11 +627,12 @@ func (p *Parser) parseInfix(left ast.Expression) (ast.Expression, error) {
 }
 
 func (p *Parser) parseSlice(left ast.Expression) (ast.Expression, error) {
-	p.next()
 	var (
-		expr = ast.CreateSlice(left, nil)
+		tok  = p.curr
+		expr = ast.CreateSlice(tok, left, nil)
 		err  error
 	)
+	p.next()
 	if !p.is(token.Colon) {
 		expr.End, err = p.parse(powLowest)
 		if err != nil {
@@ -631,7 +652,10 @@ func (p *Parser) parseIndex(left ast.Expression) (ast.Expression, error) {
 	default:
 		return nil, p.parseError("unexpected index operator")
 	}
-	ix := ast.CreateIndex(left)
+	var (
+		tok = p.curr
+		ix  = ast.CreateIndex(tok, left)
+	)
 	p.next()
 	for !p.is(token.Rsquare) && !p.done() {
 		var (
@@ -679,6 +703,7 @@ func (p *Parser) parseCompitem(until rune) ([]ast.CompItem, error) {
 	p.next()
 	for !p.is(until) && !p.done() {
 		var item ast.CompItem
+		item.Token = p.curr
 		if err := p.expect(token.Ident, "expected identifier"); err != nil {
 			return nil, err
 		}
@@ -722,7 +747,8 @@ func (p *Parser) parseCompitem(until rune) ([]ast.CompItem, error) {
 
 func (p *Parser) parseListcomp(left ast.Expression) (ast.Expression, error) {
 	cmp := ast.ListComp{
-		Body: left,
+		Token: p.curr,
+		Body:  left,
 	}
 	list, err := p.parseCompitem(token.Rsquare)
 	if err == nil {
@@ -732,8 +758,12 @@ func (p *Parser) parseListcomp(left ast.Expression) (ast.Expression, error) {
 }
 
 func (p *Parser) parseArray() (ast.Expression, error) {
+	var (
+		tok = p.curr
+		arr ast.Array
+	)
+	arr.Token = tok
 	p.next()
-	var arr ast.Array
 	for !p.is(token.Rsquare) && !p.done() {
 		e, err := p.parse(powLowest)
 		if err != nil {
@@ -761,8 +791,9 @@ func (p *Parser) parseArray() (ast.Expression, error) {
 
 func (p *Parser) parseDictcomp(key, val ast.Expression) (ast.Expression, error) {
 	cmp := ast.DictComp{
-		Key: key,
-		Val: val,
+		Key:   key,
+		Val:   val,
+		Token: p.curr,
 	}
 	list, err := p.parseCompitem(token.Rcurly)
 	if err == nil {
@@ -772,8 +803,12 @@ func (p *Parser) parseDictcomp(key, val ast.Expression) (ast.Expression, error) 
 }
 
 func (p *Parser) parseDict() (ast.Expression, error) {
+	var (
+		d   ast.Dict
+		tok = p.curr
+	)
+	d.Token = tok
 	p.next()
-	var d ast.Dict
 	d.List = make(map[ast.Expression]ast.Expression)
 	for !p.is(token.Rcurly) && !p.done() {
 		k, err := p.parse(powLowest)
@@ -809,8 +844,11 @@ func (p *Parser) parseDict() (ast.Expression, error) {
 }
 
 func (p *Parser) parsePrefix() (ast.Expression, error) {
-	var expr ast.Expression
-	switch p.curr.Type {
+	var (
+		expr ast.Expression
+		tok  = p.curr
+	)
+	switch tok.Type {
 	case token.Sub, token.Not, token.BinNot:
 		op := p.curr.Type
 		p.next()
@@ -820,35 +858,36 @@ func (p *Parser) parsePrefix() (ast.Expression, error) {
 			return nil, err
 		}
 		expr = ast.Unary{
+			Token: tok,
 			Op:    op,
 			Right: right,
 		}
 	case token.Literal:
-		expr = ast.CreateLiteral(p.curr.Literal)
+		expr = ast.CreateLiteral(tok, p.curr.Literal)
 		p.next()
 	case token.Double:
 		n, err := strconv.ParseFloat(p.curr.Literal, 64)
 		if err != nil {
 			return nil, err
 		}
-		expr = ast.CreateDouble(n)
+		expr = ast.CreateDouble(tok, n)
 		p.next()
 	case token.Integer:
 		n, err := strconv.ParseInt(p.curr.Literal, 0, 64)
 		if err != nil {
 			return nil, err
 		}
-		expr = ast.CreateInteger(n)
+		expr = ast.CreateInteger(tok, n)
 		p.next()
 	case token.Ident:
-		expr = ast.CreateVariable(p.curr.Literal)
+		expr = ast.CreateVariable(tok, p.curr.Literal)
 		p.next()
 	case token.Boolean:
 		b, err := strconv.ParseBool(p.curr.Literal)
 		if err != nil {
 			return nil, err
 		}
-		expr = ast.CreateBoolean(b)
+		expr = ast.CreateBoolean(tok, b)
 		p.next()
 	default:
 		return nil, p.parseError("prefix operator not recognized")
@@ -889,7 +928,7 @@ func (p *Parser) parseCall(left ast.Expression) (ast.Expression, error) {
 		if err := p.expect(token.Ident, "expected identifier"); err != nil {
 			return nil, err
 		}
-		a := ast.CreateParameter(p.curr.Literal)
+		a := ast.CreateParameter(p.curr, p.curr.Literal)
 		p.next()
 		if err := p.expect(token.Assign, "expected '='"); err != nil {
 			return nil, err

@@ -13,6 +13,7 @@ import (
 )
 
 func main() {
+	lint := flag.Bool("l", false, "lint code")
 	flag.Parse()
 	r, err := os.Open(flag.Arg(0))
 	if err != nil {
@@ -21,24 +22,26 @@ func main() {
 	}
 	defer r.Close()
 
-	err = Debug(os.Stdout, r)
+	err = Debug(os.Stdout, r, *lint)
 	if err != nil {
 		faults.PrintError(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func Debug(w io.Writer, r io.Reader) error {
+func Debug(w io.Writer, r io.Reader, lint bool) error {
 	expr, err := parse.New(r).Parse()
 	if err != nil {
 		return err
 	}
-	all := []visitors.Visitor{
-		visitors.Value(),
-		visitors.Variable(),
-		visitors.Import(),
+	if lint {
+		all := []visitors.Visitor{
+			visitors.Value(),
+			visitors.Variable(),
+			visitors.Import(),
+		}
+		expr, err = visitors.Visit(expr, all)
 	}
-	expr, err = visitors.Visit(expr, all)
 	if err == nil {
 		ast.Debug(w, expr)
 	}

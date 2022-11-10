@@ -5,23 +5,23 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/buddy/token"
+	"github.com/midbel/buddy/token"
 )
 
 type Expression interface {
 	IsValue() bool
 }
 
-func CreatePrimitive(res interface{}) (Expression, error) {
+func CreatePrimitive(tok token.Token, res interface{}) (Expression, error) {
 	switch r := res.(type) {
 	case int64:
-		return CreateInteger(r), nil
+		return CreateInteger(tok, r), nil
 	case float64:
-		return CreateDouble(r), nil
+		return CreateDouble(tok, r), nil
 	case bool:
-		return CreateBoolean(r), nil
+		return CreateBoolean(tok, r), nil
 	case string:
-		return CreateLiteral(r), nil
+		return CreateLiteral(tok, r), nil
 	default:
 		return nil, fmt.Errorf("unexpected primitive type: %T", res)
 	}
@@ -51,9 +51,10 @@ type Assert struct {
 	Expr Expression
 }
 
-func CreateAssert(expr Expression) Assert {
+func CreateAssert(tok token.Token, expr Expression) Assert {
 	return Assert{
-		Expr: expr,
+		Token: tok,
+		Expr:  expr,
 	}
 }
 
@@ -67,8 +68,9 @@ type Path struct {
 	Right Expression
 }
 
-func CreatePath(ident string, right Expression) Path {
+func CreatePath(tok token.Token, ident string, right Expression) Path {
 	return Path{
+		Token: tok,
 		Ident: ident,
 		Right: right,
 	}
@@ -79,12 +81,14 @@ func (_ Path) IsValue() bool {
 }
 
 type Symbol struct {
+	token.Token
 	Ident string
 	Alias string
 }
 
-func CreateSymbol(ident string) Symbol {
+func CreateSymbol(tok token.Token, ident string) Symbol {
 	return Symbol{
+		Token: tok,
 		Ident: ident,
 		Alias: ident,
 	}
@@ -110,8 +114,9 @@ type Variable struct {
 	Ident string
 }
 
-func CreateVariable(ident string) Variable {
+func CreateVariable(tok token.Token, ident string) Variable {
 	return Variable{
+		Token: tok,
 		Ident: ident,
 	}
 }
@@ -125,9 +130,10 @@ type Literal struct {
 	Str string
 }
 
-func CreateLiteral(str string) Literal {
+func CreateLiteral(tok token.Token, str string) Literal {
 	return Literal{
-		Str: str,
+		Token: tok,
+		Str:   str,
 	}
 }
 
@@ -153,7 +159,7 @@ func (i Literal) Eq(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(i.Str == y.Str)
+	return CreateBoolean(i.Token, i.Str == y.Str)
 }
 
 func (i Literal) Ne(other Expression) Expression {
@@ -161,7 +167,7 @@ func (i Literal) Ne(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(i.Str != y.Str)
+	return CreateBoolean(i.Token, i.Str != y.Str)
 }
 
 func (i Literal) Lt(other Expression) Expression {
@@ -169,7 +175,7 @@ func (i Literal) Lt(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(i.Str < y.Str)
+	return CreateBoolean(i.Token, i.Str < y.Str)
 }
 
 func (i Literal) Le(other Expression) Expression {
@@ -177,7 +183,7 @@ func (i Literal) Le(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(i.Str <= y.Str)
+	return CreateBoolean(i.Token, i.Str <= y.Str)
 }
 
 func (i Literal) Gt(other Expression) Expression {
@@ -185,7 +191,7 @@ func (i Literal) Gt(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(i.Str > y.Str)
+	return CreateBoolean(i.Token, i.Str > y.Str)
 }
 
 func (i Literal) Ge(other Expression) Expression {
@@ -193,7 +199,7 @@ func (i Literal) Ge(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(i.Str >= y.Str)
+	return CreateBoolean(i.Token, i.Str >= y.Str)
 }
 
 type Boolean struct {
@@ -201,8 +207,9 @@ type Boolean struct {
 	Value bool
 }
 
-func CreateBoolean(b bool) Boolean {
+func CreateBoolean(tok token.Token, b bool) Boolean {
 	return Boolean{
+		Token: tok,
 		Value: b,
 	}
 }
@@ -216,7 +223,7 @@ func (b Boolean) Eq(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(b.Value == y.Value)
+	return CreateBoolean(b.Token, b.Value == y.Value)
 }
 
 func (b Boolean) Ne(other Expression) Expression {
@@ -224,7 +231,7 @@ func (b Boolean) Ne(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(b.Value != y.Value)
+	return CreateBoolean(b.Token, b.Value != y.Value)
 }
 
 type Integer struct {
@@ -232,8 +239,9 @@ type Integer struct {
 	Value int64
 }
 
-func CreateInteger(n int64) Integer {
+func CreateInteger(tok token.Token, n int64) Integer {
 	return Integer{
+		Token: tok,
 		Value: n,
 	}
 }
@@ -377,7 +385,7 @@ func (i Integer) Eq(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(i.Value == y.Value)
+	return CreateBoolean(i.Token, i.Value == y.Value)
 }
 
 func (i Integer) Ne(other Expression) Expression {
@@ -385,7 +393,7 @@ func (i Integer) Ne(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(i.Value != y.Value)
+	return CreateBoolean(i.Token, i.Value != y.Value)
 }
 
 func (i Integer) Lt(other Expression) Expression {
@@ -393,7 +401,7 @@ func (i Integer) Lt(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(i.Value < y.Value)
+	return CreateBoolean(i.Token, i.Value < y.Value)
 }
 
 func (i Integer) Le(other Expression) Expression {
@@ -401,7 +409,7 @@ func (i Integer) Le(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(i.Value <= y.Value)
+	return CreateBoolean(i.Token, i.Value <= y.Value)
 }
 
 func (i Integer) Gt(other Expression) Expression {
@@ -409,7 +417,7 @@ func (i Integer) Gt(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(i.Value > y.Value)
+	return CreateBoolean(i.Token, i.Value > y.Value)
 }
 
 func (i Integer) Ge(other Expression) Expression {
@@ -417,7 +425,7 @@ func (i Integer) Ge(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(i.Value >= y.Value)
+	return CreateBoolean(i.Token, i.Value >= y.Value)
 }
 
 type Double struct {
@@ -425,8 +433,9 @@ type Double struct {
 	Value float64
 }
 
-func CreateDouble(f float64) Double {
+func CreateDouble(tok token.Token, f float64) Double {
 	return Double{
+		Token: tok,
 		Value: f,
 	}
 }
@@ -535,7 +544,7 @@ func (d Double) Eq(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(d.Value == y.Value)
+	return CreateBoolean(d.Token, d.Value == y.Value)
 }
 
 func (d Double) Ne(other Expression) Expression {
@@ -543,7 +552,7 @@ func (d Double) Ne(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(d.Value != y.Value)
+	return CreateBoolean(d.Token, d.Value != y.Value)
 }
 
 func (d Double) Lt(other Expression) Expression {
@@ -551,7 +560,7 @@ func (d Double) Lt(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(d.Value < y.Value)
+	return CreateBoolean(d.Token, d.Value < y.Value)
 }
 
 func (d Double) Le(other Expression) Expression {
@@ -559,7 +568,7 @@ func (d Double) Le(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(d.Value <= y.Value)
+	return CreateBoolean(d.Token, d.Value <= y.Value)
 }
 
 func (d Double) Gt(other Expression) Expression {
@@ -567,7 +576,7 @@ func (d Double) Gt(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(d.Value > y.Value)
+	return CreateBoolean(d.Token, d.Value > y.Value)
 }
 
 func (d Double) Ge(other Expression) Expression {
@@ -575,7 +584,7 @@ func (d Double) Ge(other Expression) Expression {
 	if !ok {
 		return nil
 	}
-	return CreateBoolean(d.Value >= y.Value)
+	return CreateBoolean(d.Token, d.Value >= y.Value)
 }
 
 type Array struct {
@@ -603,8 +612,9 @@ type Slice struct {
 	Step  Expression
 }
 
-func CreateSlice(start, end Expression) Slice {
+func CreateSlice(tok token.Token, start, end Expression) Slice {
 	return Slice{
+		Token: tok,
 		Start: start,
 		End:   end,
 	}
@@ -620,9 +630,10 @@ type Index struct {
 	List []Expression
 }
 
-func CreateIndex(arr Expression) Index {
+func CreateIndex(tok token.Token, arr Expression) Index {
 	return Index{
-		Arr: arr,
+		Token: tok,
+		Arr:   arr,
 	}
 }
 
@@ -636,8 +647,9 @@ type Parameter struct {
 	Expr  Expression
 }
 
-func CreateParameter(ident string) Parameter {
+func CreateParameter(tok token.Token, ident string) Parameter {
 	return Parameter{
+		Token: tok,
 		Ident: ident,
 	}
 }
@@ -653,8 +665,9 @@ type Function struct {
 	Body   Expression
 }
 
-func CreateFunction(ident string) Function {
+func CreateFunction(tok token.Token, ident string) Function {
 	return Function{
+		Token: tok,
 		Ident: ident,
 	}
 }
@@ -669,8 +682,9 @@ type Assign struct {
 	Right Expression
 }
 
-func CreateAssign(ident, expr Expression) Assign {
+func CreateAssign(tok token.Token, ident, expr Expression) Assign {
 	return Assign{
+		Token: tok,
 		Ident: ident,
 		Right: expr,
 	}
@@ -695,8 +709,9 @@ type Return struct {
 	Right Expression
 }
 
-func CreateReturn(right Expression) Return {
+func CreateReturn(tok token.Token, right Expression) Return {
 	return Return{
+		Token: tok,
 		Right: right,
 	}
 }
@@ -732,15 +747,17 @@ type Script struct {
 	Symbols map[string]Expression
 }
 
-func CreateScript() Script {
+func CreateScript(tok token.Token) Script {
 	return Script{
+		Token:   tok,
 		Symbols: make(map[string]Expression),
 	}
 }
 
-func CreateScriptFromList(list []Expression) Script {
+func CreateScriptFromList(tok token.Token, list []Expression) Script {
 	return Script{
-		List: list,
+		Token: tok,
+		List:  list,
 	}
 }
 

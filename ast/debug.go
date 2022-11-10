@@ -19,7 +19,7 @@ func printAST(w io.Writer, e Expression, level int) {
 	}
 	switch e := e.(type) {
 	case Script:
-		fmt.Fprintf(w, "%sblock", prefix)
+		fmt.Fprintf(w, "%s[%s] block", prefix, e.Position)
 		fmt.Fprintln(w)
 		for i := range e.List {
 			printAST(w, e.List[i], level+1)
@@ -34,25 +34,25 @@ func printAST(w io.Writer, e Expression, level int) {
 			printAST(w, e.Args[i], level+1)
 		}
 	case Assert:
-		fmt.Fprintf(w, "%sassert", prefix)
+		fmt.Fprintf(w, "%s[%s] assert", prefix, e.Position)
 		fmt.Fprintln(w)
 		printAST(w, e.Expr, level+1)
 	case Binary:
-		fmt.Fprintf(w, "%sbinary(%s)", prefix, binaryOp(e.Op))
+		fmt.Fprintf(w, "%s[%s] binary(%s)", prefix, e.Position, binaryOp(e.Op))
 		fmt.Fprintln(w)
 		printAST(w, e.Left, level+1)
 		printAST(w, e.Right, level+1)
 	case Unary:
-		fmt.Fprintf(w, "%sunary(%s)", prefix, unaryOp(e.Op))
+		fmt.Fprintf(w, "%s[%s] unary(%s)", prefix, e.Position, unaryOp(e.Op))
 		fmt.Fprintln(w)
 		printAST(w, e.Right, level+1)
 	case Assign:
-		fmt.Fprintf(w, "%sassign", prefix)
+		fmt.Fprintf(w, "%s[%s] assign", prefix, e.Position)
 		fmt.Fprintln(w)
 		printAST(w, e.Ident, level+1)
 		printAST(w, e.Right, level+2)
 	case Test:
-		fmt.Fprintf(w, "%sif", prefix)
+		fmt.Fprintf(w, "%s[%s] if", prefix, e.Position)
 		fmt.Fprintln(w)
 		printAST(w, e.Cdt, level+1)
 		printAST(w, e.Csq, level+1)
@@ -60,14 +60,14 @@ func printAST(w io.Writer, e Expression, level int) {
 			printAST(w, e.Alt, level+1)
 		}
 	case ListComp:
-		fmt.Fprintf(w, "%slistcomp", prefix)
+		fmt.Fprintf(w, "%s[%s] listcomp", prefix, e.Position)
 		fmt.Fprintln(w)
 		printAST(w, e.Body, level+1)
 		for i := range e.List {
 			printAST(w, e.List[i], level+1)
 		}
 	case DictComp:
-		fmt.Fprintf(w, "%sdictcomp", prefix)
+		fmt.Fprintf(w, "%s[%s] dictcomp", prefix, e.Position)
 		fmt.Fprintln(w)
 		printAST(w, e.Key, level+1)
 		printAST(w, e.Val, level+1)
@@ -82,17 +82,17 @@ func printAST(w io.Writer, e Expression, level int) {
 			printAST(w, e.Cdt[i], level+1)
 		}
 	case ForEach:
-		fmt.Fprintf(w, "%sforeach(%s)", prefix, e.Ident)
+		fmt.Fprintf(w, "%s[%s] foreach(%s)", prefix, e.Position, e.Ident)
 		fmt.Fprintln(w)
 		printAST(w, e.Iter, level+1)
 		printAST(w, e.Body, level+1)
 	case While:
-		fmt.Fprintf(w, "%swhile", prefix)
+		fmt.Fprintf(w, "%s[%s] while", prefix, e.Position)
 		fmt.Fprintln(w)
 		printAST(w, e.Cdt, level+1)
 		printAST(w, e.Body, level+1)
 	case For:
-		fmt.Fprintf(w, "%sfor", prefix)
+		fmt.Fprintf(w, "%s[%s] for", prefix, e.Position)
 		fmt.Fprintln(w)
 		if e.Init != nil {
 			printAST(w, e.Init, level+1)
@@ -105,32 +105,32 @@ func printAST(w io.Writer, e Expression, level int) {
 		}
 		printAST(w, e.Body, level+1)
 	case Return:
-		fmt.Fprintf(w, "%sreturn", prefix)
+		fmt.Fprintf(w, "%s[%s] return", prefix, e.Position)
 		fmt.Fprintln(w)
 		if e.Right != nil {
 			printAST(w, e.Right, level+1)
 		}
 	case Break:
-		fmt.Fprintf(w, "%sbreak", prefix)
+		fmt.Fprintf(w, "%s[%s] break", prefix, e.Position)
 		fmt.Fprintln(w)
 	case Continue:
-		fmt.Fprintf(w, "%scontinue", prefix)
+		fmt.Fprintf(w, "%s[%s] continue", prefix, e.Position)
 		fmt.Fprintln(w)
 	case Function:
-		fmt.Fprintf(w, "%sfunction(%s)", prefix, e.Ident)
+		fmt.Fprintf(w, "%s[%s] function(%s)", prefix, e.Position, e.Ident)
 		fmt.Fprintln(w)
 		for i := range e.Params {
 			printAST(w, e.Params[i], level+1)
 		}
 		printAST(w, e.Body, level+1)
 	case Parameter:
-		fmt.Fprintf(w, "%sparameter(%s)", prefix, e.Ident)
+		fmt.Fprintf(w, "%s[%s] parameter(%s)", prefix, e.Position, e.Ident)
 		fmt.Fprintln(w)
 		if e.Expr != nil {
 			printAST(w, e.Expr, level+1)
 		}
 	case Import:
-		fmt.Fprintf(w, "%simport(%s", prefix, strings.Join(e.Ident, "."))
+		fmt.Fprintf(w, "%s[%s] import(%s", prefix, e.Position, strings.Join(e.Ident, "."))
 		if e.Alias != "" {
 			fmt.Fprintf(w, ":%s", e.Alias)
 		}
@@ -139,52 +139,52 @@ func printAST(w io.Writer, e Expression, level int) {
 			printAST(w, e.Symbols[i], level+1)
 		}
 	case Symbol:
-		fmt.Fprintf(w, "%ssymbol(%s", prefix, e.Ident)
+		fmt.Fprintf(w, "%s[%s] symbol(%s", prefix, e.Position, e.Ident)
 		if e.Alias != "" {
 			fmt.Fprintf(w, ":%s", e.Alias)
 		}
 		fmt.Fprintln(w, ")")
 	case Path:
-		fmt.Fprintf(w, "%spath(%s)", prefix, e.Ident)
+		fmt.Fprintf(w, "%s[%s] path(%s)", prefix, e.Position, e.Ident)
 		fmt.Fprintln(w)
 		printAST(w, e.Right, level+1)
 	case Boolean:
-		fmt.Fprintf(w, "%sboolean(%t)", prefix, e.Value)
+		fmt.Fprintf(w, "%s[%s] boolean(%t)", prefix, e.Position, e.Value)
 		fmt.Fprintln(w)
 	case Double:
-		fmt.Fprintf(w, "%sdouble(%f)", prefix, e.Value)
+		fmt.Fprintf(w, "%s[%s] double(%f)", prefix, e.Position, e.Value)
 		fmt.Fprintln(w)
 	case Integer:
-		fmt.Fprintf(w, "%sinteger(%d)", prefix, e.Value)
+		fmt.Fprintf(w, "%s[%s] integer(%d)", prefix, e.Position, e.Value)
 		fmt.Fprintln(w)
 	case Literal:
-		fmt.Fprintf(w, "%sliteral(%s)", prefix, e.Str)
+		fmt.Fprintf(w, "%s[%s] literal(%s)", prefix, e.Position, e.Str)
 		fmt.Fprintln(w)
 	case Variable:
-		fmt.Fprintf(w, "%svariable(%s)", prefix, e.Ident)
+		fmt.Fprintf(w, "%s[%s] variable(%s)", prefix, e.Position, e.Ident)
 		fmt.Fprintln(w)
 	case Dict:
-		fmt.Fprintf(w, "%sdict(%d)", prefix, len(e.List))
+		fmt.Fprintf(w, "%s[%s] dict(%d)", prefix, e.Position, len(e.List))
 		fmt.Fprintln(w)
 		for k, v := range e.List {
 			printAST(w, k, level+1)
 			printAST(w, v, level+2)
 		}
 	case Array:
-		fmt.Fprintf(w, "%sarray(%d)", prefix, len(e.List))
+		fmt.Fprintf(w, "%s[%s] array(%d)", prefix, e.Position, len(e.List))
 		fmt.Fprintln(w)
 		for i := range e.List {
 			printAST(w, e.List[i], level+1)
 		}
 	case Index:
 		printAST(w, e.Arr, level)
-		fmt.Fprintf(w, "%sindex", prefix)
+		fmt.Fprintf(w, "%s[%s] index", prefix, e.Position)
 		fmt.Fprintln(w)
 		for i := range e.List {
 			printAST(w, e.List[i], level+1)
 		}
 	case Slice:
-		fmt.Fprintf(w, "%sslice", prefix)
+		fmt.Fprintf(w, "%s[%s] slice", prefix, e.Position)
 		fmt.Fprintln(w)
 		if e.Start != nil {
 			printAST(w, e.Start, level+1)

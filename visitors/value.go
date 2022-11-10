@@ -36,7 +36,7 @@ func (v valueVisitor) visit(expr ast.Expression, ctx types.Context) (ast.Express
 		// PASS: to be removed later
 	case ast.Variable:
 		if res, err := ctx.Resolve(e.Ident); err == nil {
-			return ast.CreatePrimitive(res.Raw())
+			return ast.CreatePrimitive(e.Token, res.Raw())
 		}
 		return e, nil
 	case ast.Array:
@@ -263,7 +263,7 @@ func evalNot(u ast.Unary) ast.Expression {
 	default:
 		return u
 	}
-	return ast.CreateBoolean(b)
+	return ast.CreateBoolean(u.Token, b)
 }
 
 func evalRev(u ast.Unary) ast.Expression {
@@ -483,10 +483,10 @@ func evalGe(b ast.Binary) ast.Expression {
 
 func evalAnd(b ast.Binary) ast.Expression {
 	res := ast.IsTrue(b.Left) && ast.IsTrue(b.Right)
-	return ast.CreateBoolean(res)
+	return ast.CreateBoolean(b.Token, res)
 }
 
 func evalOr(b ast.Binary) ast.Expression {
 	res := ast.IsTrue(b.Left) || ast.IsTrue(b.Right)
-	return ast.CreateBoolean(res)
+	return ast.CreateBoolean(b.Token, res)
 }
