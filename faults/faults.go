@@ -42,6 +42,13 @@ func (es *ErrorList) Error() string {
 	return "too many errors..."
 }
 
+func printErrorList(w io.Writer, err ErrorList) {
+	for i := range err {
+		fmt.Fprintln(w, err[i])
+	}
+	fmt.Fprintln(w, err)
+}
+
 func printParseError(w io.Writer, err parse.ParseError) {
 	var (
 		space = strings.Repeat(" ", err.Token.Position.Column-1)
