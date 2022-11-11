@@ -61,10 +61,8 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 			}
 		}
 	case ast.Index:
-		if i, ok := e.Arr.(ast.Variable); ok {
-			if err = v.exists(i); err != nil {
-				v.list.Append(err)
-			}
+		if err = v.visit(e.Arr); err != nil {
+			v.list.Append(err)
 		}
 		for i := range e.List {
 			if err = v.visit(e.List[i]); err != nil {

@@ -2,6 +2,7 @@ package visitors
 
 import (
 	"github.com/midbel/buddy/ast"
+	"github.com/midbel/buddy/faults"
 	"golang.org/x/exp/constraints"
 )
 
@@ -10,22 +11,28 @@ type Visitor interface {
 }
 
 func Visit(expr ast.Expression, visits []Visitor) (ast.Expression, error) {
-	var err error
+	var (
+		list faults.ErrorList
+		err  error
+	)
 	if s, ok := expr.(ast.Script); ok {
 		for k, v := range s.Symbols {
 			s.Symbols[k], err = Visit(v, visits)
 			if err != nil {
-				break
+				list.Append(err)
 			}
 		}
 	}
 	for i := range visits {
 		expr, err = visits[i].Visit(expr)
 		if err != nil {
-			break
+			list.Append(err)
 		}
 	}
-	return expr, err
+	if list.Size() > 0 {
+		return nil, &list
+	}
+	return expr, nil
 }
 
 type Counter[T constraints.Ordered] struct {
@@ -42,6 +49,10 @@ func NewCounter[T constraints.Ordered](parent *Counter[T]) *Counter[T] {
 		parent: parent,
 		data:   make(map[T]int),
 	}
+}
+
+func (c *Counter[T]) Zero() []T {
+	return nil
 }
 
 func (c *Counter[T]) Incr(ident T) {
