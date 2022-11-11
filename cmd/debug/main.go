@@ -39,6 +39,7 @@ func Debug(w io.Writer, r io.Reader, lint bool) error {
 			visitors.Value(),
 			visitors.Variable(),
 			visitors.Import(),
+			visitors.Loop(),
 		}
 		expr, err = visitors.Visit(expr, all)
 	}
