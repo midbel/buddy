@@ -1,2 +1,4 @@
+github.com/midbel/slices v0.2.1 h1:UHCBsx80w9+mzfaZyd8hlskKhUi6ncxHBOrpAVgL5e4=
+github.com/midbel/slices v0.2.1/go.mod h1:uKstGBCfyQnPPr776jKPo/NMWpiJjYx463lANVMYSgk=
 golang.org/x/exp v0.0.0-20221109134031-9ce248df8de5 h1:pug8He0YPdPwDXZN4B/1sJ/8d4YsZqwVZEzg/Xi5w3Y=
 golang.org/x/exp v0.0.0-20221109134031-9ce248df8de5/go.mod h1:CxIveKay+FTh1D0yPZemJVgC/95VzuuOLq5Qi4xnoYc=

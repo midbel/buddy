@@ -48,6 +48,26 @@ func EvalEnv(r io.Reader, env *types.Environ) (types.Primitive, error) {
 	return eval(expr, bud)
 }
 
+func Execute(expr ast.Expression, env *types.Environ) (types.Primitive, error) {
+	bud := New(env)
+	if s, ok := expr.(ast.Script); ok {
+		mod, ok := bud.stack.Top().(*userModule)
+		if !ok {
+			return nil, fmt.Errorf("fail to initialize main module")
+		}
+		for k, expr := range s.Symbols {
+			call, err := callableFromExpression(expr)
+			if err != nil {
+				return nil, err
+			}
+			if err := mod.Append(k, call); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return eval(expr, bud)	
+}
+
 func eval(expr ast.Expression, env *Interpreter) (types.Primitive, error) {
 	var (
 		res types.Primitive
