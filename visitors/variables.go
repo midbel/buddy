@@ -1,24 +1,24 @@
 package visitors
 
 import (
-	"fmt"
-
 	"github.com/midbel/buddy/ast"
 	"github.com/midbel/buddy/faults"
 	"github.com/midbel/buddy/token"
 )
 
 type variableVisitor struct {
-	env   *Counter[string]
-	list  faults.ErrorList
-	limit int
+	env       *Counter[string]
+	list      faults.ErrorList
+	variables map[string]token.Token
+	limit     int
 }
 
 func Variable() Visitor {
 	return &variableVisitor{
-		env:   EmptyCounter[string](),
-		list:  make(faults.ErrorList, 0, faults.MaxErrorCount),
-		limit: faults.MaxErrorCount,
+		env:       EmptyCounter[string](),
+		list:      make(faults.ErrorList, 0, faults.MaxErrorCount),
+		variables: make(map[string]token.Token),
+		limit:     faults.MaxErrorCount,
 	}
 }
 
@@ -47,6 +47,7 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 			v.list.Append(err)
 		} else {
 			v.env.Incr(e.Ident)
+			v.variables[e.Ident] = e.Token
 		}
 	case ast.Array:
 		for i := range e.List {
@@ -101,6 +102,7 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 		}
 		if i, ok := e.Ident.(ast.Variable); ok {
 			v.env.Incr(i.Ident)
+			v.variables[i.Ident] = i.Token
 		}
 	case ast.Unary:
 		err = v.visit(e.Right)
@@ -122,6 +124,7 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 				v.list.Append(err)
 			}
 			v.env.Incr(e.List[i].Ident)
+			v.variables[e.List[i].Ident] = e.List[i].Token
 			for j := range e.List[i].Cdt {
 				if err = v.visit(e.List[i].Cdt[j]); err != nil {
 					v.list.Append(err)
@@ -139,6 +142,7 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 				v.list.Append(err)
 			}
 			v.env.Incr(e.List[i].Ident)
+			v.variables[e.List[i].Ident] = e.List[i].Token
 			for j := range e.List[i].Cdt {
 				if err = v.visit(e.List[i].Cdt[j]); err != nil {
 					v.list.Append(err)
@@ -214,6 +218,7 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 				continue
 			}
 			v.env.Incr(p.Ident)
+			v.variables[p.Ident] = p.Token
 		}
 		if err = v.visit(e.Body); err != nil {
 			v.list.Append(err)
@@ -254,9 +259,17 @@ func (v variableVisitor) noLimit() bool {
 }
 
 func undefinedVar(ident string, pos token.Position) error {
-	return fmt.Errorf("[%s] %s: variable used before being defined!", pos, ident)
+	return IdentError{
+		Position: pos,
+		Ident:    ident,
+		What:     "variable used before being defined",
+	}
 }
 
-func unusedVar(ident string) error {
-	return fmt.Errorf("%s: variable defined but not used", ident)
+func unusedVar(ident string, pos token.Position) error {
+	return IdentError{
+		Position: pos,
+		Ident:    ident,
+		What:     "variable declared bot not used",
+	}
 }

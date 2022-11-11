@@ -1,10 +1,23 @@
 package visitors
 
 import (
+	"fmt"
+
 	"github.com/midbel/buddy/ast"
 	"github.com/midbel/buddy/faults"
+	"github.com/midbel/buddy/token"
 	"golang.org/x/exp/constraints"
 )
+
+type IdentError struct {
+	token.Position
+	Ident string
+	What  string
+}
+
+func (e IdentError) Error() string {
+	return fmt.Sprintf("%s: %s", e.Ident, e.What)
+}
 
 type Visitor interface {
 	Visit(ast.Expression) (ast.Expression, error)

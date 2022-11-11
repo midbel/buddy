@@ -65,7 +65,7 @@ func Execute(expr ast.Expression, env *types.Environ) (types.Primitive, error) {
 			}
 		}
 	}
-	return eval(expr, bud)	
+	return eval(expr, bud)
 }
 
 func eval(expr ast.Expression, env *Interpreter) (types.Primitive, error) {

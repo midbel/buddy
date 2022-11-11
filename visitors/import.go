@@ -1,8 +1,6 @@
 package visitors
 
 import (
-	"fmt"
-
 	"github.com/midbel/buddy/ast"
 	"github.com/midbel/buddy/faults"
 	"github.com/midbel/buddy/token"
@@ -244,9 +242,17 @@ func (v importVisitor) noLimit() bool {
 }
 
 func unusedImport(ident string, pos token.Position) error {
-	return fmt.Errorf("[%s] %s: module imported but not used", pos, ident)
+	return IdentError{
+		Position: pos,
+		Ident:    ident,
+		What:     "module imported but not used",
+	}
 }
 
 func undefinedImport(ident string, pos token.Position) error {
-	return fmt.Errorf("[%s] %s: module used but not imported!", pos, ident)
+	return IdentError{
+		Position: pos,
+		Ident:    ident,
+		What:     "module used but not imported",
+	}
 }
