@@ -9,16 +9,18 @@ import (
 )
 
 type importVisitor struct {
-	env   *Counter[string]
-	list  faults.ErrorList
-	limit int
+	env     *Counter[string]
+	list    faults.ErrorList
+	modules map[string]token.Token
+	limit   int
 }
 
 func Import() Visitor {
 	return &importVisitor{
-		env:   EmptyCounter[string](),
-		list:  make(faults.ErrorList, 0, faults.MaxErrorCount),
-		limit: faults.MaxErrorCount,
+		env:     EmptyCounter[string](),
+		list:    make(faults.ErrorList, 0, faults.MaxErrorCount),
+		modules: make(map[string]token.Token),
+		limit:   faults.MaxErrorCount,
 	}
 }
 
@@ -186,6 +188,7 @@ func (v *importVisitor) visit(expr ast.Expression) error {
 			v.list.Append(err)
 		}
 	case ast.Import:
+		v.modules[e.Alias] = e.Token
 		v.env.Incr(e.Alias)
 	case ast.Function:
 		for i := range e.Params {
@@ -226,16 +229,22 @@ func (v importVisitor) exists(e ast.Path) error {
 	return nil
 }
 
-func (v importVisitor) unused() {
-	// TBW
+func (v *importVisitor) unused() {
+	for _, i := range v.env.Zero() {
+		tok, ok := v.modules[i]
+		if !ok {
+			continue
+		}
+		v.list.Append(unusedImport(i, tok.Position))
+	}
 }
 
 func (v importVisitor) noLimit() bool {
 	return v.limit <= 0
 }
 
-func unusedImport(ident string) error {
-	return fmt.Errorf("%s: module imported but not used", ident)
+func unusedImport(ident string, pos token.Position) error {
+	return fmt.Errorf("[%s] %s: module imported but not used", pos, ident)
 }
 
 func undefinedImport(ident string, pos token.Position) error {

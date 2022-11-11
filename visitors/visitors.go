@@ -52,7 +52,13 @@ func NewCounter[T constraints.Ordered](parent *Counter[T]) *Counter[T] {
 }
 
 func (c *Counter[T]) Zero() []T {
-	return nil
+	var vs []T
+	for k, v := range c.data {
+		if v <= 1 {
+			vs = append(vs, k)
+		}
+	}
+	return vs
 }
 
 func (c *Counter[T]) Incr(ident T) {
