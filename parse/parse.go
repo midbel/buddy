@@ -457,6 +457,7 @@ func (p *Parser) parseBlock() (ast.Expression, error) {
 		return nil, err
 	}
 	p.next()
+	p.skip(token.EOL)
 	for !p.is(token.Rcurly) && !p.done() {
 		e, err := p.parse(powLowest)
 		if err != nil {

@@ -37,14 +37,32 @@ func main() {
 	compute(base, expr)
 }
 
+const (
+	Low  = "low"
+	Mod  = "moderate"
+	High = "high"
+	Risk = "unreasonable"
+)
+
 func compute(ident string, expr ast.Expression) {
 	cmp := visitors.Complexity()
-	count, err := cmp.Count(expr)
+	result, err := cmp.Count(expr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s", ident, err)
 		fmt.Fprintln(os.Stderr)
 		return
 	}
-	fmt.Fprintf(os.Stdout, "%s: %3d", ident, count)
+	var str string
+	switch {
+	case result <= 10:
+		str = Low
+	case result > 10 && result <= 20:
+		str = Mod
+	case result > 20 && result <= 50:
+		str = High
+	default:
+		str = Risk
+	}
+	fmt.Fprintf(os.Stdout, "complexity of %s is %s (computed: %d)", ident, str, result)
 	fmt.Fprintln(os.Stdout)
 }
