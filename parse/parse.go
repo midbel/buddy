@@ -50,56 +50,55 @@ func New(r io.Reader) *Parser {
 	if n, ok := r.(interface{ Name() string }); ok {
 		p.file = n.Name()
 	}
-	p.prefix = map[rune]func() (ast.Expression, error){
-		token.BinNot:  p.parsePrefix,
-		token.Sub:     p.parsePrefix,
-		token.Not:     p.parsePrefix,
-		token.Double:  p.parsePrefix,
-		token.Integer: p.parsePrefix,
-		token.Boolean: p.parsePrefix,
-		token.Literal: p.parsePrefix,
-		token.Ident:   p.parsePrefix,
-		token.Lparen:  p.parseGroup,
-		token.Lsquare: p.parseArray,
-		token.Lcurly:  p.parseDict,
-		token.Keyword: p.parseKeyword,
-	}
-	p.infix = map[rune]func(ast.Expression) (ast.Expression, error){
-		token.Add:          p.parseInfix,
-		token.Sub:          p.parseInfix,
-		token.Mul:          p.parseInfix,
-		token.Div:          p.parseInfix,
-		token.Mod:          p.parseInfix,
-		token.Pow:          p.parseInfix,
-		token.Lshift:       p.parseInfix,
-		token.Rshift:       p.parseInfix,
-		token.BinAnd:       p.parseInfix,
-		token.BinOr:        p.parseInfix,
-		token.BinXor:       p.parseInfix,
-		token.Assign:       p.parseAssign,
-		token.Dot:          p.parsePath,
-		token.AddAssign:    p.parseAssign,
-		token.SubAssign:    p.parseAssign,
-		token.DivAssign:    p.parseAssign,
-		token.MulAssign:    p.parseAssign,
-		token.ModAssign:    p.parseAssign,
-		token.BinAndAssign: p.parseAssign,
-		token.BinOrAssign:  p.parseAssign,
-		token.BinXorAssign: p.parseAssign,
-		token.LshiftAssign: p.parseAssign,
-		token.RshiftAssign: p.parseAssign,
-		token.Lparen:       p.parseCall,
-		token.Lsquare:      p.parseIndex,
-		token.Ternary:      p.parseTernary,
-		token.Eq:           p.parseInfix,
-		token.Ne:           p.parseInfix,
-		token.Lt:           p.parseInfix,
-		token.Le:           p.parseInfix,
-		token.Gt:           p.parseInfix,
-		token.Ge:           p.parseInfix,
-		token.And:          p.parseInfix,
-		token.Or:           p.parseInfix,
-	}
+
+	p.registerPrefix(token.BinNot, p.parseUnary)
+	p.registerPrefix(token.Sub, p.parseUnary)
+	p.registerPrefix(token.Not, p.parseUnary)
+	p.registerPrefix(token.Double, p.parseDouble)
+	p.registerPrefix(token.Integer, p.parseInteger)
+	p.registerPrefix(token.Boolean, p.parseBoolean)
+	p.registerPrefix(token.Literal, p.parseLiteral)
+	p.registerPrefix(token.Ident, p.parseIdentifier)
+	p.registerPrefix(token.Lparen, p.parseGroup)
+	p.registerPrefix(token.Lsquare, p.parseArray)
+	p.registerPrefix(token.Lcurly, p.parseDict)
+	p.registerPrefix(token.Keyword, p.parseKeyword)
+
+	p.registerInfix(token.Add, p.parseInfix)
+	p.registerInfix(token.Sub, p.parseInfix)
+	p.registerInfix(token.Mul, p.parseInfix)
+	p.registerInfix(token.Div, p.parseInfix)
+	p.registerInfix(token.Mod, p.parseInfix)
+	p.registerInfix(token.Pow, p.parseInfix)
+	p.registerInfix(token.Lshift, p.parseInfix)
+	p.registerInfix(token.Rshift, p.parseInfix)
+	p.registerInfix(token.BinAnd, p.parseInfix)
+	p.registerInfix(token.BinOr, p.parseInfix)
+	p.registerInfix(token.BinXor, p.parseInfix)
+	p.registerInfix(token.Assign, p.parseAssign)
+	p.registerInfix(token.Dot, p.parsePath)
+	p.registerInfix(token.AddAssign, p.parseAssign)
+	p.registerInfix(token.SubAssign, p.parseAssign)
+	p.registerInfix(token.DivAssign, p.parseAssign)
+	p.registerInfix(token.MulAssign, p.parseAssign)
+	p.registerInfix(token.ModAssign, p.parseAssign)
+	p.registerInfix(token.BinAndAssign, p.parseAssign)
+	p.registerInfix(token.BinOrAssign, p.parseAssign)
+	p.registerInfix(token.BinXorAssign, p.parseAssign)
+	p.registerInfix(token.LshiftAssign, p.parseAssign)
+	p.registerInfix(token.RshiftAssign, p.parseAssign)
+	p.registerInfix(token.Lparen, p.parseCall)
+	p.registerInfix(token.Lsquare, p.parseIndex)
+	p.registerInfix(token.Ternary, p.parseTernary)
+	p.registerInfix(token.Eq, p.parseInfix)
+	p.registerInfix(token.Ne, p.parseInfix)
+	p.registerInfix(token.Lt, p.parseInfix)
+	p.registerInfix(token.Le, p.parseInfix)
+	p.registerInfix(token.Gt, p.parseInfix)
+	p.registerInfix(token.Ge, p.parseInfix)
+	p.registerInfix(token.And, p.parseInfix)
+	p.registerInfix(token.Or, p.parseInfix)
+
 	p.next()
 	p.next()
 	return &p
@@ -837,56 +836,60 @@ func (p *Parser) parseDict() (ast.Expression, error) {
 	return d, nil
 }
 
-func (p *Parser) parsePrefix() (ast.Expression, error) {
+func (p *Parser) parseUnary() (ast.Expression, error) {
 	var (
-		expr ast.Expression
-		tok  = p.curr
+		tok = p.curr
+		op  = p.curr.Type
 	)
-	switch tok.Type {
-	case token.Sub, token.Not, token.BinNot:
-		op := p.curr.Type
-		p.next()
+	p.next()
 
-		right, err := p.parse(powPrefix)
-		if err != nil {
-			return nil, err
-		}
-		expr = ast.Unary{
-			Token: tok,
-			Op:    op,
-			Right: right,
-		}
-	case token.Literal:
-		expr = ast.CreateLiteral(tok, p.curr.Literal)
-		p.next()
-	case token.Double:
-		n, err := strconv.ParseFloat(p.curr.Literal, 64)
-		if err != nil {
-			return nil, err
-		}
-		expr = ast.CreateDouble(tok, n)
-		p.next()
-	case token.Integer:
-		n, err := strconv.ParseInt(p.curr.Literal, 0, 64)
-		if err != nil {
-			return nil, err
-		}
-		expr = ast.CreateInteger(tok, n)
-		p.next()
-	case token.Ident:
-		expr = ast.CreateVariable(tok, p.curr.Literal)
-		p.next()
-	case token.Boolean:
-		b, err := strconv.ParseBool(p.curr.Literal)
-		if err != nil {
-			return nil, err
-		}
-		expr = ast.CreateBoolean(tok, b)
-		p.next()
-	default:
-		return nil, p.parseError("prefix operator not recognized")
+	right, err := p.parse(powPrefix)
+	if err != nil {
+		return nil, err
 	}
-	return expr, nil
+	expr := ast.Unary{
+		Token: tok,
+		Op:    op,
+		Right: right,
+	}
+	return expr, err
+}
+
+func (p *Parser) parseLiteral() (ast.Expression, error) {
+	defer p.next()
+	return ast.CreateLiteral(p.curr, p.curr.Literal), nil
+}
+
+func (p *Parser) parseInteger() (ast.Expression, error) {
+	n, err := strconv.ParseInt(p.curr.Literal, 0, 64)
+	if err != nil {
+		return nil, err
+	}
+	defer p.next()
+	return ast.CreateInteger(p.curr, n), nil
+}
+
+func (p *Parser) parseDouble() (ast.Expression, error) {
+	n, err := strconv.ParseFloat(p.curr.Literal, 64)
+	if err != nil {
+		return nil, err
+	}
+	defer p.next()
+	return ast.CreateDouble(p.curr, n), nil
+}
+
+func (p *Parser) parseBoolean() (ast.Expression, error) {
+	b, err := strconv.ParseBool(p.curr.Literal)
+	if err != nil {
+		return nil, err
+	}
+	defer p.next()
+	return ast.CreateBoolean(p.curr, b), nil
+}
+
+func (p *Parser) parseIdentifier() (ast.Expression, error) {
+	defer p.next()
+	return ast.CreateVariable(p.curr, p.curr.Literal), nil
 }
 
 func (p *Parser) parseCall(left ast.Expression) (ast.Expression, error) {
@@ -979,6 +982,14 @@ func (p *Parser) getInfixExpr(left ast.Expression) (ast.Expression, error) {
 		return nil, p.parseError("binary operator not recognized")
 	}
 	return fn(left)
+}
+
+func (p *Parser) registerInfix(tok rune, fn func(ast.Expression) (ast.Expression, error)) {
+	p.infix[tok] = fn
+}
+
+func (p *Parser) registerPrefix(tok rune, fn func() (ast.Expression, error)) {
+	p.prefix[tok] = fn
 }
 
 func (p *Parser) peekIs(r rune) bool {

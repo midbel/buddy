@@ -8,6 +8,7 @@ import (
 	"github.com/midbel/buddy/ast"
 	"github.com/midbel/buddy/builtins"
 	"github.com/midbel/buddy/parse"
+	"github.com/midbel/buddy/token"
 	"github.com/midbel/buddy/types"
 	"github.com/midbel/slices"
 )
@@ -84,44 +85,64 @@ func eval(expr ast.Expression, env *Interpreter) (types.Primitive, error) {
 		res = types.CreateBool(e.Value)
 	case ast.Variable:
 		res, err = env.Resolve(e.Ident)
+		err = wrapError(err, e.Position)
 	case ast.Array:
 		res, err = evalArray(e, env)
+		err = wrapError(err, e.Position)
 	case ast.Dict:
 		res, err = evalDict(e, env)
+		err = wrapError(err, e.Position)
 	case ast.Index:
 		res, err = evalIndex(e, env)
+		err = wrapError(err, e.Position)
 	case ast.Path:
 		res, err = evalPath(e, env)
+		err = wrapError(err, e.Position)
 	case ast.Call:
 		res, err = evalCall(e, env)
+		err = wrapError(err, e.Position)
 	case ast.Parameter:
 		res, err = eval(e.Expr, env)
+		err = wrapError(err, e.Position)
 	case ast.Assert:
 		res, err = evalAssert(e, env)
+		err = wrapError(err, e.Position)
 	case ast.Assign:
 		res, err = evalAssign(e, env)
+		err = wrapError(err, e.Position)
 	case ast.Unary:
 		res, err = evalUnary(e, env)
+		err = wrapError(err, e.Position)
 	case ast.Binary:
 		res, err = evalBinary(e, env)
+		err = wrapError(err, e.Position)
 	case ast.ListComp:
 		res, err = evalListComp(e, env)
+		err = wrapError(err, e.Position)
 	case ast.DictComp:
 		res, err = evalDictComp(e, env)
+		err = wrapError(err, e.Position)
 	case ast.Test:
 		res, err = evalTest(e, env)
+		err = wrapError(err, e.Position)
 	case ast.While:
 		res, err = evalWhile(e, env)
+		err = wrapError(err, e.Position)
 	case ast.For:
 		res, err = evalFor(e, env)
+		err = wrapError(err, e.Position)
 	case ast.ForEach:
 		res, err = evalForeach(e, env)
+		err = wrapError(err, e.Position)
 	case ast.Import:
 		res, err = evalImport(e, env)
+		err = wrapError(err, e.Position)
 	case ast.Script:
 		res, err = evalScript(e, env)
+		err = wrapError(err, e.Position)
 	case ast.Return:
 		res, err = evalReturn(e, env)
+		err = wrapError(err, e.Position)
 	case ast.Break:
 		return nil, errBreak
 	case ast.Continue:
@@ -563,5 +584,16 @@ func assignIndex(i ast.Index, value types.Primitive, env *Interpreter) error {
 		return err
 	}
 	_, err = c.Set(res, value)
+	return err
+}
+
+func wrapError(err error, pos token.Position) error {
+	switch {
+	case err == nil:
+	case errors.Is(err, errContinue):
+	case errors.Is(err, errBreak):
+	default:
+		err = fmt.Errorf("at %s: %w", pos, err)
+	}
 	return err
 }
