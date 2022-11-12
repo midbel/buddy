@@ -48,6 +48,16 @@ func (c *Cyclo) Count(expr ast.Expression) (int, error) {
 				return c.count, err
 			}
 		}
+	case ast.Slice:
+		if _, err := c.Count(e.Start); err != nil {
+			return c.count, err
+		}
+		if _, err := c.Count(e.End); err != nil {
+			return c.count, err
+		}
+		if _, err := c.Count(e.Step); err != nil {
+			return c.count, err
+		}
 	case ast.Path:
 		return c.Count(e.Right)
 	case ast.Call:
