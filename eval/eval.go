@@ -583,6 +583,7 @@ func wrapError(err error, pos token.Position) error {
 	case err == nil:
 	case errors.Is(err, errContinue):
 	case errors.Is(err, errBreak):
+	case errors.Is(err, errReturn):
 	default:
 		err = fmt.Errorf("at %s: %w", pos, err)
 	}
