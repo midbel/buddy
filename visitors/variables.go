@@ -197,6 +197,7 @@ func (v *variableVisitor) visit(expr ast.Expression) error {
 		if err = v.visit(e.Iter); err != nil {
 			v.list.Append(err)
 		}
+		v.env.Incr(e.Ident)
 		if err = v.visit(e.Body); err != nil {
 			v.list.Append(err)
 		}
