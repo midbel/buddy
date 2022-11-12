@@ -39,6 +39,10 @@ type Parser struct {
 	infix  map[rune]func(ast.Expression) (ast.Expression, error)
 }
 
+func Parse(r io.Reader) (ast.Expression, error) {
+	return New(r).Parse()
+}
+
 func New(r io.Reader) *Parser {
 	p := Parser{
 		scan: scan.Scan(r),
