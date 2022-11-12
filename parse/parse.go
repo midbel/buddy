@@ -561,11 +561,6 @@ func (p *Parser) parsePath(left ast.Expression) (ast.Expression, error) {
 }
 
 func (p *Parser) parseAssign(left ast.Expression) (ast.Expression, error) {
-	switch left.(type) {
-	case ast.Variable, ast.Index:
-	default:
-		return nil, p.parseError("unexpected assignment operator")
-	}
 	var (
 		tok = p.curr
 		op  = p.curr.Type
@@ -647,11 +642,6 @@ func (p *Parser) parseSlice(left ast.Expression) (ast.Expression, error) {
 }
 
 func (p *Parser) parseIndex(left ast.Expression) (ast.Expression, error) {
-	switch left.(type) {
-	case ast.Array, ast.Dict, ast.Index, ast.Variable, ast.Literal:
-	default:
-		return nil, p.parseError("unexpected index operator")
-	}
 	var (
 		tok = p.curr
 		ix  = ast.CreateIndex(tok, left)
