@@ -65,6 +65,8 @@ func (v *loopVisitor) visit(expr ast.Expression) error {
 		v.reject(e.Expr)
 	case ast.Assert:
 		v.reject(e.Expr)
+	case ast.Let:
+		v.reject(e.Right)
 	case ast.Assign:
 		v.reject(e.Ident)
 		v.reject(e.Right)

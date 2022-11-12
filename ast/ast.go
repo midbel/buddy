@@ -676,6 +676,23 @@ func (_ Function) IsValue() bool {
 	return false
 }
 
+type Let struct {
+	token.Token
+	Ident string
+	Right Expression
+}
+
+func CreateLet(tok token.Token, ident string) Let {
+	return Let{
+		Token: tok,
+		Ident: ident,
+	}
+}
+
+func (_ Let) IsValue() bool {
+	return false
+}
+
 type Assign struct {
 	token.Token
 	Ident Expression

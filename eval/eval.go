@@ -107,6 +107,9 @@ func eval(expr ast.Expression, env *Interpreter) (types.Primitive, error) {
 	case ast.Assert:
 		res, err = evalAssert(e, env)
 		err = wrapError(err, e.Position)
+	case ast.Let:
+		res, err = evalLet(e, env)
+		err = wrapError(err, e.Position)
 	case ast.Assign:
 		res, err = evalAssign(e, env)
 		err = wrapError(err, e.Position)
@@ -280,6 +283,14 @@ func evalAssert(a ast.Assert, env *Interpreter) (types.Primitive, error) {
 	return res, nil
 }
 
+func evalLet(e ast.Let, env *Interpreter) (types.Primitive, error) {
+	res, err := eval(e.Right, env)
+	if err != nil {
+		return nil, err
+	}
+	return res, env.Define(e.Ident, res)
+}
+
 func evalAssign(a ast.Assign, env *Interpreter) (types.Primitive, error) {
 	res, err := eval(a.Right, env)
 	if err != nil {
@@ -287,7 +298,7 @@ func evalAssign(a ast.Assign, env *Interpreter) (types.Primitive, error) {
 	}
 	switch a := a.Ident.(type) {
 	case ast.Variable:
-		env.Define(a.Ident, res)
+		err = env.Assign(a.Ident, res)
 	case ast.Index:
 		err = assignIndex(a, res, env)
 	default:
@@ -320,12 +331,9 @@ func evalListComp(lc ast.ListComp, env *Interpreter) (types.Primitive, error) {
 	var (
 		arr []types.Primitive
 		err error
-		old = env.Environ
 	)
-	defer func() {
-		env.Environ = old
-	}()
-	env.Environ = types.EnclosedEnv(old)
+	env.enterScope()
+	defer env.leaveScope()
 
 	err = evalCompItem(lc.List, env, func() error {
 		res, err := eval(lc.Body, env)
@@ -344,12 +352,9 @@ func evalDictComp(dc ast.DictComp, env *Interpreter) (types.Primitive, error) {
 	var (
 		dict = types.CreateDict()
 		err  error
-		old  = env.Environ
 	)
-	defer func() {
-		env.Environ = old
-	}()
-	env.Environ = types.EnclosedEnv(old)
+	env.enterScope()
+	defer env.leaveScope()
 
 	err = evalCompItem(dc.List, env, func() error {
 		key, err := eval(dc.Key, env)
@@ -394,11 +399,8 @@ func evalCompItem(cis []ast.CompItem, env *Interpreter, do func() error) error {
 			}
 		}
 		if len(cis) > 1 {
-			old := env.Environ
-			defer func() {
-				env.Environ = old
-			}()
-			env.Environ = types.EnclosedEnv(old)
+			env.enterScope()
+			defer env.leaveScope()
 			return evalCompItem(slices.Rest(cis), env, do)
 		}
 		return do()
@@ -410,11 +412,8 @@ func evalTest(t ast.Test, env *Interpreter) (types.Primitive, error) {
 	if err != nil {
 		return nil, err
 	}
-	old := env.Environ
-	defer func() {
-		env.Environ = old
-	}()
-	env.Environ = types.EnclosedEnv(old)
+	env.enterScope()
+	defer env.leaveScope()
 	if res.True() {
 		return eval(t.Csq, env)
 	}
@@ -429,11 +428,8 @@ func evalWhile(w ast.While, env *Interpreter) (types.Primitive, error) {
 }
 
 func evalFor(f ast.For, env *Interpreter) (types.Primitive, error) {
-	old := env.Environ
-	defer func() {
-		env.Environ = old
-	}()
-	env.Environ = types.EnclosedEnv(old)
+	env.enterScope()
+	defer env.leaveScope()
 	if f.Init != nil {
 		_, err := eval(f.Init, env)
 		if err != nil {
@@ -445,11 +441,8 @@ func evalFor(f ast.For, env *Interpreter) (types.Primitive, error) {
 
 func evalLoop(body, cdt, incr ast.Expression, env *Interpreter) (types.Primitive, error) {
 	execBody := func() (types.Primitive, error) {
-		old := env.Environ
-		defer func() {
-			env.Environ = old
-		}()
-		env.Environ = types.EnclosedEnv(old)
+		env.enterScope()
+		defer env.leaveScope()
 		return eval(body, env)
 	}
 	var (
@@ -495,12 +488,10 @@ func evalForeach(f ast.ForEach, env *Interpreter) (types.Primitive, error) {
 	}
 	var res types.Primitive
 	err = iter.Iter(func(p types.Primitive) error {
-		old := env.Environ
-		defer func() {
-			env.Environ = old
-		}()
-		env.Environ = types.EnclosedEnv(old)
+		env.enterScope()
+		defer env.leaveScope()
 		env.Define(f.Ident, p)
+
 		res, err = eval(f.Body, env)
 		return err
 	})

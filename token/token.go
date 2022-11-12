@@ -20,6 +20,7 @@ const (
 	KwAs       = "as"
 	KwIn       = "in"
 	KwAssert   = "assert"
+	KwLet      = "let"
 )
 
 func IsKeyword(str string) bool {
@@ -37,6 +38,7 @@ func IsKeyword(str string) bool {
 	case KwFor:
 	case KwIn:
 	case KwAssert:
+	case KwLet:
 	default:
 		return false
 	}

@@ -98,6 +98,10 @@ func (v *importVisitor) visit(expr ast.Expression) error {
 		if err = v.visit(e.Expr); err != nil {
 			v.list.Append(err)
 		}
+	case ast.Let:
+		if err := v.visit(e.Right); err != nil {
+			v.list.Append(err)
+		}
 	case ast.Assign:
 		if err := v.visit(e.Ident); err != nil {
 			v.list.Append(err)

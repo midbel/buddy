@@ -180,9 +180,33 @@ func (p *Parser) parseKeyword() (ast.Expression, error) {
 		return p.parseFor()
 	case token.KwAssert:
 		return p.parseAssert()
+	case token.KwLet:
+		return p.parseLet()
 	default:
 		return nil, p.parseError("keyword not recognized")
 	}
+}
+
+func (p *Parser) parseLet() (ast.Expression, error) {
+	var (
+		tok = p.curr
+		let ast.Let
+		err error
+	)
+	p.next()
+	if err = p.expect(token.Ident, "identifier expected"); err != nil {
+		return nil, err
+	}
+	let = ast.CreateLet(tok, p.curr.Literal)
+	p.next()
+	if err = p.expect(token.Assign, "expected '='"); err != nil {
+		return nil, err
+	}
+	p.next()
+	if let.Right, err = p.parse(powLowest); err != nil {
+		return nil, err
+	}
+	return let, err
 }
 
 func (p *Parser) parseAssert() (ast.Expression, error) {

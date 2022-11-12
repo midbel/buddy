@@ -90,11 +90,17 @@ func (v valueVisitor) visit(expr ast.Expression, ctx types.Context) (ast.Express
 	case ast.Assert:
 		e.Expr, err = v.visit(e.Expr, ctx)
 		return e, err
+	case ast.Let:
+		e.Right, err = v.visit(e.Right, ctx)
+		if res, err := evalExpression(e.Right); err == nil {
+			ctx.Define(e.Ident, res)
+		}
+		return e, err
 	case ast.Assign:
 		e.Right, err = v.visit(e.Right, ctx)
 		if res, err := evalExpression(e.Right); err == nil {
 			if v, ok := e.Ident.(ast.Variable); ok {
-				ctx.Define(v.Ident, res)
+				ctx.Assign(v.Ident, res)
 			}
 		}
 		return e, err

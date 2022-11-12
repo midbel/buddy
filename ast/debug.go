@@ -46,6 +46,10 @@ func printAST(w io.Writer, e Expression, level int) {
 		fmt.Fprintf(w, "%s[%s] unary(%s)", prefix, e.Position, unaryOp(e.Op))
 		fmt.Fprintln(w)
 		printAST(w, e.Right, level+1)
+	case Let:
+		fmt.Fprintf(w, "%s[%s] let(%s)", prefix, e.Position, e.Ident)
+		fmt.Fprintln(w)
+		printAST(w, e.Right, level+1)
 	case Assign:
 		fmt.Fprintf(w, "%s[%s] assign", prefix, e.Position)
 		fmt.Fprintln(w)

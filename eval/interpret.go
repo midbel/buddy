@@ -165,6 +165,14 @@ func (i *Interpreter) lookupModule(ident string) (types.Module, error) {
 	return get.Get(ident)
 }
 
+func (i *Interpreter) enterScope() {
+	i.Environ = i.Environ.Wrap()
+}
+
+func (i *Interpreter) leaveScope() {
+	i.Environ = i.Environ.Unwrap()
+}
+
 func (i *Interpreter) enter() error {
 	if i.currDepth >= i.MaxDepth {
 		return fmt.Errorf("max call stacked reached!")
