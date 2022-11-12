@@ -45,7 +45,9 @@ func Parse(r io.Reader) (ast.Expression, error) {
 
 func New(r io.Reader) *Parser {
 	p := Parser{
-		scan: scan.Scan(r),
+		scan:   scan.Scan(r),
+		prefix: make(map[rune]func() (ast.Expression, error)),
+		infix:  make(map[rune]func(ast.Expression) (ast.Expression, error)),
 	}
 	if n, ok := r.(interface{ Name() string }); ok {
 		p.file = n.Name()
@@ -843,7 +845,7 @@ func (p *Parser) parseUnary() (ast.Expression, error) {
 	)
 	p.next()
 
-	right, err := p.parse(powPrefix)
+	right, err := p.parse(powLowest)
 	if err != nil {
 		return nil, err
 	}
