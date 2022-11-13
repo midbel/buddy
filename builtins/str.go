@@ -46,7 +46,7 @@ func runFormat(args ...types.Primitive) (types.Primitive, error) {
 	}
 	var list []any
 	for _, a := range slices.Rest(args) {
-		list = append(list, a)
+		list = append(list, a.Raw())
 	}
 	str = fmt.Sprintf(str, list...)
 	return types.CreateString(str), nil
